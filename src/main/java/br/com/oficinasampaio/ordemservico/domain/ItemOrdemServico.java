@@ -12,6 +12,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
+import br.com.oficinasampaio.shared.domain.RegraNegocioException;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.UUID;
@@ -60,14 +62,14 @@ public class ItemOrdemServico {
 
     private static String textoObrigatorio(String valor, String campo) {
         if (valor == null || valor.isBlank()) {
-            throw new IllegalArgumentException(campo + " é obrigatória");
+            throw new RegraNegocioException(campo + " é obrigatória");
         }
         return valor.trim();
     }
 
     private static BigDecimal numeroPositivo(BigDecimal valor, String mensagem) {
         if (valor == null || valor.signum() <= 0) {
-            throw new IllegalArgumentException(mensagem);
+            throw new RegraNegocioException(mensagem);
         }
         return valor;
     }

@@ -8,8 +8,12 @@ import br.com.oficinasampaio.ordemservico.application.AbrirOrdemServico;
 import br.com.oficinasampaio.ordemservico.application.AbrirOrdemServicoCommand;
 import br.com.oficinasampaio.ordemservico.application.AdicionarItemOrdemServico;
 import br.com.oficinasampaio.ordemservico.application.AdicionarItemOrdemServicoCommand;
+import br.com.oficinasampaio.ordemservico.application.AcaoOrdemServicoView;
+import br.com.oficinasampaio.ordemservico.application.AlterarStatusOrdemServico;
+import br.com.oficinasampaio.ordemservico.application.AlterarStatusOrdemServicoCommand;
 import br.com.oficinasampaio.ordemservico.application.BuscarOrdemServico;
 import br.com.oficinasampaio.ordemservico.application.ListarOrdensServico;
+import br.com.oficinasampaio.ordemservico.application.StatusOrdemServicoView;
 import br.com.oficinasampaio.ordemservico.application.TipoItemOrdemServicoView;
 import br.com.oficinasampaio.veiculo.application.CadastrarVeiculo;
 import br.com.oficinasampaio.veiculo.application.CadastrarVeiculoCommand;
@@ -47,6 +51,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.authenticated;
 import static org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.unauthenticated;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
@@ -78,6 +83,9 @@ class CadastroClienteVeiculoIntegrationTest {
 
     @Autowired
     private AdicionarItemOrdemServico adicionarItemOrdemServico;
+
+    @Autowired
+    private AlterarStatusOrdemServico alterarStatusOrdemServico;
 
     @Autowired
     private BuscarOrdemServico buscarOrdemServico;
@@ -222,8 +230,9 @@ class CadastroClienteVeiculoIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("EM_EXECUCAO")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Aguardar peça")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Adicionar item")))
                 .andExpect(content().string(org.hamcrest.Matchers.not(
-                        org.hamcrest.Matchers.containsString("Adicionar item")
+                        org.hamcrest.Matchers.containsString("Cancelar")
                 )));
 
         mockMvc.perform(post(caminhoStatus)
@@ -232,12 +241,107 @@ class CadastroClienteVeiculoIntegrationTest {
                         .param("acao", "AGUARDAR_PECA"))
                 .andExpect(status().is3xxRedirection());
 
+        mockMvc.perform(post("/ordens-servico/" + ordem.id() + "/itens")
+                        .with(user("funcionario").roles("FUNCIONARIO"))
+                        .with(csrf())
+                        .param("tipo", "PECA")
+                        .param("descricao", "Sensor de rotação")
+                        .param("quantidade", "1")
+                        .param("valorUnitario", "210.00"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attributeCount(0));
+
         entityManager.flush();
         entityManager.clear();
-        assertEquals(
-                br.com.oficinasampaio.ordemservico.application.StatusOrdemServicoView.AGUARDANDO_PECA,
-                buscarOrdemServico.executar(ordem.id()).status()
+        var detalhe = buscarOrdemServico.executar(ordem.id());
+        assertAll(
+                () -> assertEquals(StatusOrdemServicoView.AGUARDANDO_PECA, detalhe.status()),
+                () -> assertEquals(new BigDecimal("210.00"), detalhe.totalPecas()),
+                () -> assertEquals(new BigDecimal("360.00"), detalhe.total())
         );
+    }
+
+    @Test
+    void somenteAdministradorCancelaOrdemPelaInterfaceWeb() throws Exception {
+        var cliente = cadastrarCliente.executar(new CadastrarClienteCommand(
+                "Oficina Cancelamento", "064.503.780-06", null, null
+        ));
+        var veiculo = cadastrarVeiculo.executar(new CadastrarVeiculoCommand(
+                cliente.id(), "PQR-8S90", "Fiat", "Argo",
+                2021, "Vermelho", 30_000L
+        ));
+        var ordem = abrirOrdemServico.executar(new AbrirOrdemServicoCommand(
+                veiculo.id(), "Revisão dos freios"
+        ));
+        var caminhoStatus = "/ordens-servico/" + ordem.id() + "/status";
+
+        mockMvc.perform(post(caminhoStatus)
+                        .with(user("funcionario").roles("FUNCIONARIO"))
+                        .with(csrf())
+                        .param("acao", "CANCELAR"))
+                .andExpect(status().isForbidden());
+
+        entityManager.flush();
+        entityManager.clear();
+        assertEquals(StatusOrdemServicoView.ABERTA, buscarOrdemServico.executar(ordem.id()).status());
+
+        mockMvc.perform(get("/ordens-servico/" + ordem.id())
+                        .with(user("administrador").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Cancelar")));
+
+        mockMvc.perform(post(caminhoStatus)
+                        .with(user("administrador").roles("ADMIN"))
+                        .with(csrf())
+                        .param("acao", "CANCELAR"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("sucesso", "Status da ordem atualizado"));
+
+        entityManager.flush();
+        entityManager.clear();
+        assertEquals(StatusOrdemServicoView.CANCELADA, buscarOrdemServico.executar(ordem.id()).status());
+    }
+
+    @Test
+    void informaRegraDeNegocioAoTentarAdicionarItemEmOrdemFinalizada() throws Exception {
+        var cliente = cadastrarCliente.executar(new CadastrarClienteCommand(
+                "Oficina Finalizada", "088.755.230-09", null, null
+        ));
+        var veiculo = cadastrarVeiculo.executar(new CadastrarVeiculoCommand(
+                cliente.id(), "STU-1V23", "Chevrolet", "Onix",
+                2022, "Prata", 15_000L
+        ));
+        var ordem = abrirOrdemServico.executar(new AbrirOrdemServicoCommand(
+                veiculo.id(), "Troca de pastilhas"
+        ));
+        adicionarItemOrdemServico.executar(new AdicionarItemOrdemServicoCommand(
+                ordem.id(), TipoItemOrdemServicoView.SERVICO, "Troca de pastilhas",
+                BigDecimal.ONE, new BigDecimal("180.00")
+        ));
+        alterarStatusOrdemServico.executar(new AlterarStatusOrdemServicoCommand(
+                ordem.id(), AcaoOrdemServicoView.INICIAR_EXECUCAO
+        ));
+        alterarStatusOrdemServico.executar(new AlterarStatusOrdemServicoCommand(
+                ordem.id(), AcaoOrdemServicoView.FINALIZAR
+        ));
+
+        mockMvc.perform(post("/ordens-servico/" + ordem.id() + "/itens")
+                        .with(user("funcionario").roles("FUNCIONARIO"))
+                        .with(csrf())
+                        .param("tipo", "PECA")
+                        .param("descricao", "Filtro de óleo")
+                        .param("quantidade", "1")
+                        .param("valorUnitario", "35.00"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/ordens-servico/" + ordem.id()))
+                .andExpect(flash().attribute(
+                        "erro",
+                        "Itens só podem ser alterados enquanto a ordem não está finalizada"
+                ));
+
+        entityManager.flush();
+        entityManager.clear();
+        assertEquals(1, buscarOrdemServico.executar(ordem.id()).itens().size());
     }
 
     @Test
@@ -254,11 +358,14 @@ class CadastroClienteVeiculoIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(view().name("standby/modulo"))
                     .andExpect(content().string(org.hamcrest.Matchers.containsString(modulo.getValue())))
-                    .andExpect(content().string(org.hamcrest.Matchers.containsString("Módulo em construção")))
-                    .andExpect(content().string(org.hamcrest.Matchers.containsString("/pagamentos")))
-                    .andExpect(content().string(org.hamcrest.Matchers.containsString("/financeiro")))
-                    .andExpect(content().string(org.hamcrest.Matchers.containsString("/relatorios")));
+                    .andExpect(content().string(org.hamcrest.Matchers.containsString("Módulo em construção")));
         }
+
+        mockMvc.perform(get("/pagamentos")
+                        .with(user("funcionario").roles("FUNCIONARIO")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/pagamentos")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/financeiro")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/relatorios")));
     }
 
     @Test

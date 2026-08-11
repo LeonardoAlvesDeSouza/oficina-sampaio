@@ -11,6 +11,8 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
+import br.com.oficinasampaio.shared.domain.RegraNegocioException;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -73,7 +75,7 @@ public class OrdemServico {
 
     private static String textoObrigatorio(String valor, String campo) {
         if (valor == null || valor.isBlank()) {
-            throw new IllegalArgumentException(campo + " é obrigatório");
+            throw new RegraNegocioException(campo + " é obrigatório");
         }
         return valor.trim();
     }
@@ -149,7 +151,7 @@ public class OrdemServico {
     public void executar(AcaoOrdemServico acao) {
         Objects.requireNonNull(acao, "Ação é obrigatória");
         if (!acao.disponivelPara(this)) {
-            throw new IllegalStateException(acao.mensagemIndisponivel(this));
+            throw new RegraNegocioException(acao.mensagemIndisponivel(this));
         }
         status = acao.getDestino();
     }
@@ -158,6 +160,10 @@ public class OrdemServico {
         return Arrays.stream(AcaoOrdemServico.values())
                 .filter(acao -> acao.disponivelPara(this))
                 .toList();
+    }
+
+    public boolean permiteAlterarItens() {
+        return status.permiteAlterarItens();
     }
 
     boolean possuiItens() {
@@ -170,8 +176,10 @@ public class OrdemServico {
             BigDecimal quantidade,
             BigDecimal valorUnitario
     ) {
-        if (status != StatusOrdemServico.ABERTA) {
-            throw new IllegalStateException("Itens só podem ser alterados enquanto a ordem está aberta");
+        if (!status.permiteAlterarItens()) {
+            throw new RegraNegocioException(
+                    "Itens só podem ser alterados enquanto a ordem não está finalizada"
+            );
         }
         itens.add(new ItemOrdemServico(this, tipo, descricao, quantidade, valorUnitario));
     }

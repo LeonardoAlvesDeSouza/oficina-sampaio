@@ -1,5 +1,6 @@
 package br.com.oficinasampaio.ordemservico.domain;
 
+import br.com.oficinasampaio.shared.domain.RegraNegocioException;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -11,6 +12,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class OrdemServicoTest {
+
+    private static final String ITENS_BLOQUEADOS =
+            "Itens só podem ser alterados enquanto a ordem não está finalizada";
 
     @Test
     void abreOrdemSemItensComStatusAberta() {
@@ -63,7 +67,7 @@ class OrdemServicoTest {
                 Instant.parse("2026-08-11T12:00:00Z")
         );
 
-        var erro = assertThrows(IllegalArgumentException.class, () ->
+        var erro = assertThrows(RegraNegocioException.class, () ->
                 ordem.adicionarServico("Alinhamento", BigDecimal.ZERO, new BigDecimal("120.00"))
         );
 
@@ -78,7 +82,7 @@ class OrdemServicoTest {
                 Instant.parse("2026-08-11T12:00:00Z")
         );
 
-        var erro = assertThrows(IllegalArgumentException.class, () ->
+        var erro = assertThrows(RegraNegocioException.class, () ->
                 ordem.adicionarPeca("Arruela", BigDecimal.ONE, new BigDecimal("0.001"))
         );
 
@@ -87,20 +91,57 @@ class OrdemServicoTest {
     }
 
     @Test
-    void iniciaExecucaoComItensEBloqueiaNovasAlteracoes() {
-        var ordem = OrdemServico.abrir(
-                UUID.randomUUID(), UUID.randomUUID(), "Revisão",
-                Instant.parse("2026-08-11T12:00:00Z")
-        );
-        ordem.adicionarServico("Diagnóstico", BigDecimal.ONE, new BigDecimal("90.00"));
+    void iniciaExecucaoComItensEMantemItensEditaveis() {
+        var ordem = ordemComServico();
 
         ordem.iniciarExecucao();
 
         assertEquals(StatusOrdemServico.EM_EXECUCAO, ordem.getStatus());
-        var erro = assertThrows(IllegalStateException.class, () ->
-                ordem.adicionarPeca("Filtro", BigDecimal.ONE, new BigDecimal("35.00"))
+        ordem.adicionarPeca("Filtro de óleo", BigDecimal.ONE, new BigDecimal("35.00"));
+        assertEquals(2, ordem.getItens().size());
+    }
+
+    @Test
+    void lancaPecaRecebidaDuranteAEsperaECompoeOTotal() {
+        var ordem = ordemComServico();
+        ordem.iniciarExecucao();
+        ordem.aguardarPeca();
+
+        ordem.adicionarPeca("Sensor de rotação", BigDecimal.ONE, new BigDecimal("210.00"));
+
+        assertAll(
+                () -> assertEquals(StatusOrdemServico.AGUARDANDO_PECA, ordem.getStatus()),
+                () -> assertEquals(new BigDecimal("90.00"), ordem.getTotalServicos()),
+                () -> assertEquals(new BigDecimal("210.00"), ordem.getTotalPecas()),
+                () -> assertEquals(new BigDecimal("300.00"), ordem.getTotal())
         );
-        assertEquals("Itens só podem ser alterados enquanto a ordem está aberta", erro.getMessage());
+    }
+
+    @Test
+    void bloqueiaAlteracaoDeItensAposFinalizar() {
+        var ordem = ordemComServico();
+        ordem.iniciarExecucao();
+        ordem.finalizar();
+
+        var erro = assertThrows(RegraNegocioException.class, () ->
+                ordem.adicionarPeca("Filtro de óleo", BigDecimal.ONE, new BigDecimal("35.00"))
+        );
+
+        assertEquals(ITENS_BLOQUEADOS, erro.getMessage());
+        assertEquals(1, ordem.getItens().size());
+    }
+
+    @Test
+    void bloqueiaAlteracaoDeItensNaOrdemCancelada() {
+        var ordem = ordemComServico();
+        ordem.cancelar();
+
+        var erro = assertThrows(RegraNegocioException.class, () ->
+                ordem.adicionarServico("Troca de óleo", BigDecimal.ONE, new BigDecimal("80.00"))
+        );
+
+        assertEquals(ITENS_BLOQUEADOS, erro.getMessage());
+        assertEquals(1, ordem.getItens().size());
     }
 
     @Test
@@ -110,7 +151,7 @@ class OrdemServicoTest {
                 Instant.parse("2026-08-11T12:00:00Z")
         );
 
-        var erro = assertThrows(IllegalStateException.class, ordem::iniciarExecucao);
+        var erro = assertThrows(RegraNegocioException.class, ordem::iniciarExecucao);
 
         assertEquals("Inclua ao menos um item antes de iniciar a execução", erro.getMessage());
         assertEquals(StatusOrdemServico.ABERTA, ordem.getStatus());
@@ -118,11 +159,7 @@ class OrdemServicoTest {
 
     @Test
     void percorreFluxoDeEsperaRetomadaFinalizacaoEEntrega() {
-        var ordem = OrdemServico.abrir(
-                UUID.randomUUID(), UUID.randomUUID(), "Revisão",
-                Instant.parse("2026-08-11T12:00:00Z")
-        );
-        ordem.adicionarServico("Diagnóstico", BigDecimal.ONE, new BigDecimal("90.00"));
+        var ordem = ordemComServico();
         ordem.iniciarExecucao();
 
         ordem.aguardarPeca();
@@ -147,16 +184,21 @@ class OrdemServicoTest {
         ordemAberta.cancelar();
         assertEquals(StatusOrdemServico.CANCELADA, ordemAberta.getStatus());
 
-        var ordemEmExecucao = OrdemServico.abrir(
-                UUID.randomUUID(), UUID.randomUUID(), "Revisão",
-                Instant.parse("2026-08-11T12:00:00Z")
-        );
-        ordemEmExecucao.adicionarServico("Diagnóstico", BigDecimal.ONE, new BigDecimal("90.00"));
+        var ordemEmExecucao = ordemComServico();
         ordemEmExecucao.iniciarExecucao();
         ordemEmExecucao.cancelar();
         assertEquals(StatusOrdemServico.CANCELADA, ordemEmExecucao.getStatus());
 
-        var erro = assertThrows(IllegalStateException.class, ordemEmExecucao::cancelar);
+        var erro = assertThrows(RegraNegocioException.class, ordemEmExecucao::cancelar);
         assertEquals("A ordem entregue ou cancelada não pode ser cancelada", erro.getMessage());
+    }
+
+    private static OrdemServico ordemComServico() {
+        var ordem = OrdemServico.abrir(
+                UUID.randomUUID(), UUID.randomUUID(), "Revisão",
+                Instant.parse("2026-08-11T12:00:00Z")
+        );
+        ordem.adicionarServico("Diagnóstico", BigDecimal.ONE, new BigDecimal("90.00"));
+        return ordem;
     }
 }

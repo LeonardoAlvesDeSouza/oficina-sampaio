@@ -6,21 +6,27 @@ import br.com.oficinasampaio.ordemservico.domain.OrdemServico;
 import java.util.List;
 
 public enum AcaoOrdemServicoView {
-    INICIAR_EXECUCAO("Iniciar execução"),
-    AGUARDAR_PECA("Aguardar peça"),
-    RETOMAR_EXECUCAO("Retomar execução"),
-    FINALIZAR("Finalizar"),
-    ENTREGAR("Registrar entrega"),
-    CANCELAR("Cancelar");
+    INICIAR_EXECUCAO("Iniciar execução", false),
+    AGUARDAR_PECA("Aguardar peça", false),
+    RETOMAR_EXECUCAO("Retomar execução", false),
+    FINALIZAR("Finalizar", false),
+    ENTREGAR("Registrar entrega", false),
+    CANCELAR("Cancelar", true);
 
     private final String descricao;
+    private final boolean restritaAoAdministrador;
 
-    AcaoOrdemServicoView(String descricao) {
+    AcaoOrdemServicoView(String descricao, boolean restritaAoAdministrador) {
         this.descricao = descricao;
+        this.restritaAoAdministrador = restritaAoAdministrador;
     }
 
     public String getDescricao() {
         return descricao;
+    }
+
+    public boolean isRestritaAoAdministrador() {
+        return restritaAoAdministrador;
     }
 
     AcaoOrdemServico paraDominio() {

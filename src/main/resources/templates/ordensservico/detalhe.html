@@ -29,10 +29,10 @@
     <div th:if="${sucesso}" class="alert alert-success" th:text="${sucesso}"></div>
     <div th:if="${erro}" class="alert alert-danger" th:text="${erro}"></div>
 
-    <div class="card shadow-sm mb-4" th:if="${!ordem.acoesDisponiveis.isEmpty()}">
+    <div class="card shadow-sm mb-4" th:if="${!acoes.isEmpty()}">
         <div class="card-body d-flex flex-wrap align-items-center gap-2">
             <strong class="me-2">Próximas ações</strong>
-            <form th:each="acao : ${ordem.acoesDisponiveis}"
+            <form th:each="acao : ${acoes}"
                   th:action="@{/ordens-servico/{id}/status(id=${ordem.id})}" method="post">
                 <input type="hidden" name="acao" th:value="${acao}">
                 <button type="submit" class="btn btn-sm"
@@ -84,7 +84,7 @@
                 </div>
             </div>
 
-            <div class="card shadow-sm mt-4" th:if="${ordem.status.name() == 'ABERTA'}">
+            <div class="card shadow-sm mt-4" th:if="${ordem.permiteAlterarItens}">
                 <div class="card-body">
                     <h2 class="h5 mb-3">Adicionar item</h2>
                     <form th:action="@{/ordens-servico/{id}/itens(id=${ordem.id})}"
