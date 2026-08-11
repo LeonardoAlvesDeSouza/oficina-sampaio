@@ -34,6 +34,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.util.UUID;
 import java.math.BigDecimal;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -237,6 +238,27 @@ class CadastroClienteVeiculoIntegrationTest {
                 br.com.oficinasampaio.ordemservico.application.StatusOrdemServicoView.AGUARDANDO_PECA,
                 buscarOrdemServico.executar(ordem.id()).status()
         );
+    }
+
+    @Test
+    void exibePagamentosFinanceiroERelatoriosComoModulosEmConstrucao() throws Exception {
+        var modulos = Map.of(
+                "/pagamentos", "Pagamentos",
+                "/financeiro", "Financeiro",
+                "/relatorios", "Relatórios"
+        );
+
+        for (var modulo : modulos.entrySet()) {
+            mockMvc.perform(get(modulo.getKey())
+                            .with(user("funcionario").roles("FUNCIONARIO")))
+                    .andExpect(status().isOk())
+                    .andExpect(view().name("standby/modulo"))
+                    .andExpect(content().string(org.hamcrest.Matchers.containsString(modulo.getValue())))
+                    .andExpect(content().string(org.hamcrest.Matchers.containsString("Módulo em construção")))
+                    .andExpect(content().string(org.hamcrest.Matchers.containsString("/pagamentos")))
+                    .andExpect(content().string(org.hamcrest.Matchers.containsString("/financeiro")))
+                    .andExpect(content().string(org.hamcrest.Matchers.containsString("/relatorios")));
+        }
     }
 
     @Test

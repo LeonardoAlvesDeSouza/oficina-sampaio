@@ -2,11 +2,14 @@
 <html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
 <body>
 <nav th:fragment="principal" class="navbar navbar-expand-lg bg-dark navbar-dark">
-    <div class="container d-flex justify-content-between">
+    <div class="container d-flex flex-wrap justify-content-between gap-2">
         <a class="navbar-brand" th:href="@{/}">Oficina Sampaio</a>
-        <div class="d-flex align-items-center gap-2">
+        <div class="d-flex flex-wrap align-items-center gap-2">
             <a th:href="@{/clientes}" class="btn btn-outline-light btn-sm">Clientes</a>
             <a th:href="@{/ordens-servico}" class="btn btn-outline-light btn-sm">Ordens de serviço</a>
+            <a th:href="@{/pagamentos}" class="btn btn-outline-light btn-sm">Pagamentos</a>
+            <a th:href="@{/financeiro}" class="btn btn-outline-light btn-sm">Financeiro</a>
+            <a th:href="@{/relatorios}" class="btn btn-outline-light btn-sm">Relatórios</a>
             <a th:if="${administrador}" th:href="@{/usuarios}" class="btn btn-outline-light btn-sm">Usuários</a>
             <form th:action="@{/logout}" method="post">
                 <button type="submit" class="btn btn-outline-light btn-sm">Sair</button>

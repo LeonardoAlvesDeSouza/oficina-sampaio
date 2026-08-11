@@ -24,10 +24,12 @@ As quatro primeiras fatias verticais estão implementadas:
 - consulta detalhada da ordem pela interface web;
 - ciclo operacional com início, espera por peça, retomada, finalização, entrega e cancelamento;
 - ações disponíveis por estado e bloqueio de itens após o início da execução;
+- entradas de menu e telas de stand-by para Pagamentos, Financeiro e Relatórios;
 - testes de domínio, aplicação, HTTP e integração com PostgreSQL real.
 
-Pagamentos, financeiro e relatórios ainda serão implementados. Os relatórios e
-a impressão da OS usarão JasperReports com templates `JRXML` versionados.
+As regras e integrações de Pagamentos, Financeiro e Relatórios ainda serão
+implementadas; por enquanto, essas áreas exibem “Módulo em construção”. Os
+relatórios e a impressão da OS usarão JasperReports com templates `JRXML` versionados.
 
 ## Arquitetura
 

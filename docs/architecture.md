@@ -250,7 +250,9 @@ Implementado nas quatro primeiras fatias verticais:
 - persistência das ordens e seus itens pela migration Flyway `V3`;
 - ciclo operacional completo da ordem, com ações válidas expostas pela aplicação;
 - persistência otimista das mudanças de estado e controles correspondentes na interface web;
+- navegação e telas de stand-by para Pagamentos, Financeiro e Relatórios;
 - testes de domínio, casos de uso, HTTP e persistência real com Testcontainers.
 
 Ainda planejado no desenho, mas não implementado: pagamento, `financeiro`,
-relatórios JasperReports e seus templates `JRXML`.
+relatórios JasperReports e seus templates `JRXML`. Até essas fatias serem
+entregues, as respectivas rotas exibem “Módulo em construção”.
