@@ -9,7 +9,6 @@ public class NavegacaoModelAdvice {
 
     @ModelAttribute("administrador")
     public boolean administrador(Authentication authentication) {
-        return authentication != null && authentication.getAuthorities().stream()
-                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
+        return PerfilAutenticado.ehAdministrador(authentication);
     }
 }

@@ -19,11 +19,11 @@ As quatro primeiras fatias verticais estão implementadas:
 - cadastro e listagem de usuários restritos ao administrador;
 - criação idempotente do administrador inicial;
 - abertura e listagem de ordens de serviço para clientes e veículos ativos;
-- inclusão de serviços e peças enquanto a ordem está aberta;
+- inclusão de serviços e peças até a finalização da ordem;
 - cálculo separado de serviços, peças e total da ordem;
 - consulta detalhada da ordem pela interface web;
 - ciclo operacional com início, espera por peça, retomada, finalização, entrega e cancelamento;
-- ações disponíveis por estado e bloqueio de itens após o início da execução;
+- ações disponíveis por estado, com cancelamento restrito ao administrador;
 - entradas de menu e telas de stand-by para Pagamentos, Financeiro e Relatórios;
 - testes de domínio, aplicação, HTTP e integração com PostgreSQL real.
 

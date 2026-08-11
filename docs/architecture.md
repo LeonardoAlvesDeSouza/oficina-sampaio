@@ -128,7 +128,19 @@ stateDiagram-v2
 ```
 
 A execução só começa quando existe ao menos um item. Serviços e peças podem ser
-alterados apenas em `ABERTA`; `ENTREGUE` e `CANCELADA` são estados terminais.
+lançados enquanto a ordem não está finalizada, ou seja, em `ABERTA`,
+`EM_EXECUCAO` e `AGUARDANDO_PECA` — assim a peça recebida durante a espera entra
+no total antes do fechamento. `FINALIZADA` encerra o valor da ordem, e
+`ENTREGUE` e `CANCELADA` são estados terminais.
+
+O cancelamento é restrito ao perfil `ADMIN`; as demais transições estão
+disponíveis para qualquer usuário autenticado. A restrição é aplicada no
+servidor e também esconde o botão na tela de detalhe.
+
+Violações dessas regras são sinalizadas pelo domínio com `RegraNegocioException`
+e chegam ao usuário como mensagem na própria tela. Como o agregado usa lock
+otimista, uma alteração concorrente é reportada como conflito, sem perder a
+versão já gravada.
 
 O pagamento possui estado financeiro próprio (`PENDENTE` ou `PAGA`). Uma ordem
 cancelada não pode receber pagamento.
@@ -249,8 +261,10 @@ Implementado nas quatro primeiras fatias verticais:
 - totais monetários derivados no domínio e consulta detalhada pela interface web;
 - persistência das ordens e seus itens pela migration Flyway `V3`;
 - ciclo operacional completo da ordem, com ações válidas expostas pela aplicação;
+- itens lançáveis até a finalização e cancelamento restrito ao administrador;
 - persistência otimista das mudanças de estado e controles correspondentes na interface web;
-- navegação e telas de stand-by para Pagamentos, Financeiro e Relatórios;
+- navegação e telas de stand-by para Pagamentos, Financeiro e Relatórios, servidas
+  temporariamente por `shared.presentation` até que cada módulo assuma sua rota;
 - testes de domínio, casos de uso, HTTP e persistência real com Testcontainers.
 
 Ainda planejado no desenho, mas não implementado: pagamento, `financeiro`,
