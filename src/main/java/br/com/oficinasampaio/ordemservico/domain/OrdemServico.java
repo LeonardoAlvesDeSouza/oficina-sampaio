@@ -14,6 +14,7 @@ import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -119,6 +120,48 @@ public class OrdemServico {
 
     public void adicionarPeca(String descricao, BigDecimal quantidade, BigDecimal valorUnitario) {
         adicionarItem(TipoItemOrdemServico.PECA, descricao, quantidade, valorUnitario);
+    }
+
+    public void iniciarExecucao() {
+        executar(AcaoOrdemServico.INICIAR_EXECUCAO);
+    }
+
+    public void aguardarPeca() {
+        executar(AcaoOrdemServico.AGUARDAR_PECA);
+    }
+
+    public void retomarExecucao() {
+        executar(AcaoOrdemServico.RETOMAR_EXECUCAO);
+    }
+
+    public void finalizar() {
+        executar(AcaoOrdemServico.FINALIZAR);
+    }
+
+    public void entregar() {
+        executar(AcaoOrdemServico.ENTREGAR);
+    }
+
+    public void cancelar() {
+        executar(AcaoOrdemServico.CANCELAR);
+    }
+
+    public void executar(AcaoOrdemServico acao) {
+        Objects.requireNonNull(acao, "Ação é obrigatória");
+        if (!acao.disponivelPara(this)) {
+            throw new IllegalStateException(acao.mensagemIndisponivel(this));
+        }
+        status = acao.getDestino();
+    }
+
+    public List<AcaoOrdemServico> getAcoesDisponiveis() {
+        return Arrays.stream(AcaoOrdemServico.values())
+                .filter(acao -> acao.disponivelPara(this))
+                .toList();
+    }
+
+    boolean possuiItens() {
+        return !itens.isEmpty();
     }
 
     private void adicionarItem(

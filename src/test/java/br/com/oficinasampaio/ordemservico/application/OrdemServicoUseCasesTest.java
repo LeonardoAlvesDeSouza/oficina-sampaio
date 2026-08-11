@@ -129,6 +129,58 @@ class OrdemServicoUseCasesTest {
         assertEquals(0, repositorio.listar().size());
     }
 
+    @Test
+    void alteraStatusEInformaAsProximasAcoesDisponiveis() {
+        var clienteId = UUID.randomUUID();
+        var veiculoId = UUID.randomUUID();
+        VeiculoQueries veiculos = id -> Optional.of(new VeiculoParaOrdem(
+                veiculoId, clienteId, "ABC1D23", "Volkswagen", "Gol", true
+        ));
+        var repositorio = new OrdemServicoRepositoryEmMemoria();
+        var ordem = new AbrirOrdemServico(
+                id -> true,
+                veiculos,
+                repositorio,
+                Clock.fixed(Instant.parse("2026-08-11T12:00:00Z"), ZoneOffset.UTC)
+        ).executar(new AbrirOrdemServicoCommand(veiculoId, "Revisão"));
+        var semItens = new BuscarOrdemServico(repositorio).executar(UUID.randomUUID());
+        assertEquals(List.of(AcaoOrdemServicoView.CANCELAR), semItens.acoesDisponiveis());
+
+        var comItem = new AdicionarItemOrdemServico(repositorio).executar(new AdicionarItemOrdemServicoCommand(
+                UUID.randomUUID(), TipoItemOrdemServicoView.SERVICO,
+                "Diagnóstico", BigDecimal.ONE, new BigDecimal("90.00")
+        ));
+        assertEquals(
+                List.of(AcaoOrdemServicoView.INICIAR_EXECUCAO, AcaoOrdemServicoView.CANCELAR),
+                comItem.acoesDisponiveis()
+        );
+        var alterarStatus = new AlterarStatusOrdemServico(repositorio);
+
+        var emExecucao = alterarStatus.executar(new AlterarStatusOrdemServicoCommand(
+                ordem.id(), AcaoOrdemServicoView.INICIAR_EXECUCAO
+        ));
+        assertAll(
+                () -> assertEquals(StatusOrdemServicoView.EM_EXECUCAO, emExecucao.status()),
+                () -> assertEquals(
+                        List.of(
+                                AcaoOrdemServicoView.AGUARDAR_PECA,
+                                AcaoOrdemServicoView.FINALIZAR,
+                                AcaoOrdemServicoView.CANCELAR
+                        ),
+                        emExecucao.acoesDisponiveis()
+                )
+        );
+
+        var aguardando = alterarStatus.executar(new AlterarStatusOrdemServicoCommand(
+                ordem.id(), AcaoOrdemServicoView.AGUARDAR_PECA
+        ));
+        assertEquals(StatusOrdemServicoView.AGUARDANDO_PECA, aguardando.status());
+        assertEquals(
+                List.of(AcaoOrdemServicoView.RETOMAR_EXECUCAO, AcaoOrdemServicoView.CANCELAR),
+                aguardando.acoesDisponiveis()
+        );
+    }
+
     private static final class OrdemServicoRepositoryEmMemoria implements OrdemServicoRepository {
 
         private final List<OrdemServico> ordens = new ArrayList<>();

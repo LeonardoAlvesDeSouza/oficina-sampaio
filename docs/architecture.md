@@ -21,7 +21,7 @@ flowchart TB
             veiculo["Veículo<br/>Cadastro e proprietário"]
             ordem["Ordem de Serviço<br/>Itens, totais e ciclo operacional"]
             financeiro["Financeiro<br/>Pagamentos e movimentações"]
-            relatorio["Consultas e Relatórios<br/>Dashboard, histórico e PDF"]
+            relatorio["Consultas e Relatórios<br/>Dashboard, histórico e documentos"]
         end
 
         web --> usuario
@@ -44,20 +44,20 @@ flowchart TB
 
         persistence["Persistência por módulo<br/>Spring Data JPA"]
         migrations["Migrações<br/>Flyway"]
-        pdf["Gerador de OS<br/>OpenPDF"]
+        jasper["Motor de relatórios<br/>JasperReports + JRXML"]
 
         usuario --> persistence
         cliente --> persistence
         veiculo --> persistence
         ordem --> persistence
         financeiro --> persistence
-        relatorio --> pdf
-        ordem --> pdf
+        relatorio --> jasper
+        ordem --> jasper
     end
 
     persistence --> database[("PostgreSQL")]
     migrations --> database
-    pdf --> document["Documento PDF"]
+    jasper --> document["Relatórios e OS<br/>PDF"]
 ```
 
 ## Estrutura interna dos módulos
@@ -109,14 +109,26 @@ flowchart LR
 
 ## Ciclo da ordem de serviço
 
-Estados operacionais iniciais:
+Estados operacionais:
 
-```text
-ABERTA -> EM_EXECUCAO -> FINALIZADA -> ENTREGUE
-             |              |
-             v              v
-      AGUARDANDO_PECA    CANCELADA
+```mermaid
+stateDiagram-v2
+    [*] --> ABERTA
+    ABERTA --> EM_EXECUCAO: iniciar execução
+    EM_EXECUCAO --> AGUARDANDO_PECA: aguardar peça
+    AGUARDANDO_PECA --> EM_EXECUCAO: retomar execução
+    EM_EXECUCAO --> FINALIZADA: finalizar
+    FINALIZADA --> ENTREGUE: registrar entrega
+    ABERTA --> CANCELADA: cancelar
+    EM_EXECUCAO --> CANCELADA: cancelar
+    AGUARDANDO_PECA --> CANCELADA: cancelar
+    FINALIZADA --> CANCELADA: cancelar
+    ENTREGUE --> [*]
+    CANCELADA --> [*]
 ```
+
+A execução só começa quando existe ao menos um item. Serviços e peças podem ser
+alterados apenas em `ABERTA`; `ENTREGUE` e `CANCELADA` são estados terminais.
 
 O pagamento possui estado financeiro próprio (`PENDENTE` ou `PAGA`). Uma ordem
 cancelada não pode receber pagamento.
@@ -155,6 +167,25 @@ sequenceDiagram
 Pagamento, atualização da ordem e entrada financeira devem ser persistidos na
 mesma transação. Uma restrição única no banco deve impedir que o mesmo pagamento
 gere mais de uma movimentação.
+
+## Relatórios e documentos
+
+Relatórios gerenciais e a impressão da ordem de serviço serão gerados com
+JasperReports. Os layouts ficam versionados como templates `JRXML` no módulo de
+relatórios e são compilados para execução pela aplicação.
+
+```mermaid
+flowchart LR
+    consulta["Caso de uso de consulta"] --> dados["DTO / JRBeanCollectionDataSource"]
+    template["Template JRXML versionado"] --> jasper["JasperReports"]
+    dados --> jasper
+    jasper --> pdf["PDF da OS ou relatório"]
+```
+
+O domínio não conhece JasperReports. Casos de uso preparam os dados de leitura,
+enquanto a infraestrutura de relatórios seleciona o template, preenche os
+parâmetros e exporta o documento. Essa fronteira permite testar as consultas sem
+depender da renderização e validar os templates separadamente.
 
 ## Pacotes
 
@@ -203,7 +234,7 @@ fronteiras da aplicação e não substituem as entidades dentro do domínio.
 
 ## Estado da implementação
 
-Implementado nas três primeiras fatias verticais:
+Implementado nas quatro primeiras fatias verticais:
 
 - fundação Spring Boot 4.1 e Java 21;
 - módulos `cliente` e `veiculo` nas quatro camadas;
@@ -217,7 +248,9 @@ Implementado nas três primeiras fatias verticais:
 - itens de serviço e peça internos ao agregado, com quantidades e valores positivos;
 - totais monetários derivados no domínio e consulta detalhada pela interface web;
 - persistência das ordens e seus itens pela migration Flyway `V3`;
+- ciclo operacional completo da ordem, com ações válidas expostas pela aplicação;
+- persistência otimista das mudanças de estado e controles correspondentes na interface web;
 - testes de domínio, casos de uso, HTTP e persistência real com Testcontainers.
 
-Ainda planejado no desenho, mas não implementado: transições do ciclo operacional
-da ordem, pagamento, `financeiro`, emissão de PDF e `relatorio`.
+Ainda planejado no desenho, mas não implementado: pagamento, `financeiro`,
+relatórios JasperReports e seus templates `JRXML`.

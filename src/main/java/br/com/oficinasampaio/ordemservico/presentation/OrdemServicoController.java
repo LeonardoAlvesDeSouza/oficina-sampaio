@@ -3,8 +3,11 @@ package br.com.oficinasampaio.ordemservico.presentation;
 import br.com.oficinasampaio.cliente.application.BuscarCliente;
 import br.com.oficinasampaio.ordemservico.application.AbrirOrdemServico;
 import br.com.oficinasampaio.ordemservico.application.AbrirOrdemServicoCommand;
+import br.com.oficinasampaio.ordemservico.application.AcaoOrdemServicoView;
 import br.com.oficinasampaio.ordemservico.application.AdicionarItemOrdemServico;
 import br.com.oficinasampaio.ordemservico.application.AdicionarItemOrdemServicoCommand;
+import br.com.oficinasampaio.ordemservico.application.AlterarStatusOrdemServico;
+import br.com.oficinasampaio.ordemservico.application.AlterarStatusOrdemServicoCommand;
 import br.com.oficinasampaio.ordemservico.application.BuscarOrdemServico;
 import br.com.oficinasampaio.ordemservico.application.ListarOrdensServico;
 import br.com.oficinasampaio.veiculo.application.VeiculoQueries;
@@ -18,6 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.UUID;
 
@@ -27,6 +31,7 @@ public class OrdemServicoController {
 
     private final AbrirOrdemServico abrirOrdemServico;
     private final AdicionarItemOrdemServico adicionarItemOrdemServico;
+    private final AlterarStatusOrdemServico alterarStatusOrdemServico;
     private final BuscarOrdemServico buscarOrdemServico;
     private final ListarOrdensServico listarOrdensServico;
     private final VeiculoQueries veiculoQueries;
@@ -35,6 +40,7 @@ public class OrdemServicoController {
     public OrdemServicoController(
             AbrirOrdemServico abrirOrdemServico,
             AdicionarItemOrdemServico adicionarItemOrdemServico,
+            AlterarStatusOrdemServico alterarStatusOrdemServico,
             BuscarOrdemServico buscarOrdemServico,
             ListarOrdensServico listarOrdensServico,
             VeiculoQueries veiculoQueries,
@@ -42,6 +48,7 @@ public class OrdemServicoController {
     ) {
         this.abrirOrdemServico = abrirOrdemServico;
         this.adicionarItemOrdemServico = adicionarItemOrdemServico;
+        this.alterarStatusOrdemServico = alterarStatusOrdemServico;
         this.buscarOrdemServico = buscarOrdemServico;
         this.listarOrdensServico = listarOrdensServico;
         this.veiculoQueries = veiculoQueries;
@@ -110,6 +117,23 @@ public class OrdemServicoController {
                 form.getQuantidade(),
                 form.getValorUnitario()
         ));
+        return "redirect:/ordens-servico/" + ordemServicoId;
+    }
+
+    @PostMapping("/{ordemServicoId}/status")
+    public String alterarStatus(
+            @PathVariable UUID ordemServicoId,
+            @RequestParam AcaoOrdemServicoView acao,
+            RedirectAttributes redirectAttributes
+    ) {
+        try {
+            alterarStatusOrdemServico.executar(new AlterarStatusOrdemServicoCommand(
+                    ordemServicoId, acao
+            ));
+            redirectAttributes.addFlashAttribute("sucesso", "Status da ordem atualizado");
+        } catch (IllegalStateException exception) {
+            redirectAttributes.addFlashAttribute("erro", exception.getMessage());
+        }
         return "redirect:/ordens-servico/" + ordemServicoId;
     }
 

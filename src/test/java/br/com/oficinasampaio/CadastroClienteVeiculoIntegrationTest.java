@@ -19,6 +19,7 @@ import br.com.oficinasampaio.usuario.application.CadastrarUsuarioCommand;
 import br.com.oficinasampaio.usuario.application.ListarUsuarios;
 import br.com.oficinasampaio.usuario.application.PerfilUsuarioView;
 import br.com.oficinasampaio.usuario.application.GarantirAdministradorInicial;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -94,6 +95,9 @@ class CadastroClienteVeiculoIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private EntityManager entityManager;
 
     @Test
     void persisteClienteESeuVeiculoNoPostgresql() {
@@ -185,6 +189,54 @@ class CadastroClienteVeiculoIntegrationTest {
                 .andExpect(view().name("ordensservico/lista"))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Barulho ao frear")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("90,00")));
+    }
+
+    @Test
+    void avancaCicloOperacionalPelaInterfaceWeb() throws Exception {
+        var cliente = cadastrarCliente.executar(new CadastrarClienteCommand(
+                "Oficina Ciclo", "028.286.100-08", null, null
+        ));
+        var veiculo = cadastrarVeiculo.executar(new CadastrarVeiculoCommand(
+                cliente.id(), "MNO-5P67", "Honda", "Fit",
+                2019, "Cinza", 62_000L
+        ));
+        var ordem = abrirOrdemServico.executar(new AbrirOrdemServicoCommand(
+                veiculo.id(), "Revisão do sistema elétrico"
+        ));
+        adicionarItemOrdemServico.executar(new AdicionarItemOrdemServicoCommand(
+                ordem.id(), TipoItemOrdemServicoView.SERVICO, "Diagnóstico elétrico",
+                BigDecimal.ONE, new BigDecimal("150.00")
+        ));
+
+        var caminhoStatus = "/ordens-servico/" + ordem.id() + "/status";
+        mockMvc.perform(post(caminhoStatus)
+                        .with(user("funcionario").roles("FUNCIONARIO"))
+                        .with(csrf())
+                        .param("acao", "INICIAR_EXECUCAO"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/ordens-servico/" + ordem.id()));
+
+        mockMvc.perform(get("/ordens-servico/" + ordem.id())
+                        .with(user("funcionario").roles("FUNCIONARIO")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("EM_EXECUCAO")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Aguardar peça")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("Adicionar item")
+                )));
+
+        mockMvc.perform(post(caminhoStatus)
+                        .with(user("funcionario").roles("FUNCIONARIO"))
+                        .with(csrf())
+                        .param("acao", "AGUARDAR_PECA"))
+                .andExpect(status().is3xxRedirection());
+
+        entityManager.flush();
+        entityManager.clear();
+        assertEquals(
+                br.com.oficinasampaio.ordemservico.application.StatusOrdemServicoView.AGUARDANDO_PECA,
+                buscarOrdemServico.executar(ordem.id()).status()
+        );
     }
 
     @Test
