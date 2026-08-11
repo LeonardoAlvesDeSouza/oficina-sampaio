@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -94,6 +95,13 @@ class VeiculoUseCasesTest {
         @Override
         public boolean existePorPlaca(String placa) {
             return veiculos.stream().anyMatch(veiculo -> placa.equals(veiculo.getPlaca()));
+        }
+
+        @Override
+        public Optional<Veiculo> buscarPorId(UUID veiculoId) {
+            return veiculos.stream()
+                    .filter(veiculo -> veiculoId.equals(veiculo.getId()))
+                    .findFirst();
         }
 
         @Override

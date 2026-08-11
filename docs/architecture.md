@@ -91,16 +91,15 @@ integração acontece por casos de uso públicos, consultas públicas ou eventos
 flowchart LR
     cliente["Cliente<br/>Aggregate Root"] -->|"possui"| veiculo["Veículo<br/>Aggregate Root"]
     veiculo -->|"recebe"| os["OrdemServico<br/>Aggregate Root"]
-    os --> itemServico["ItemServico<br/>Entidade interna"]
-    os --> itemPeca["ItemPeca<br/>Entidade interna"]
+    os --> item["ItemOrdemServico<br/>Entidade interna<br/>SERVICO ou PECA"]
     os -.->|"Pagamento registrado"| pagamento["Pagamento<br/>Aggregate Root"]
     pagamento --> movimento["MovimentacaoFinanceira<br/>ENTRADA"]
     usuario["Usuário<br/>Aggregate Root"] -.->|"Responsável pela operação"| os
     usuario -.-> movimento
 ```
 
-- `ItemServico` e `ItemPeca` pertencem à `OrdemServico` e não possuem
-  repositórios próprios.
+- `ItemOrdemServico` pertence à `OrdemServico`, diferencia serviço e peça pelo
+  tipo e não possui repositório próprio.
 - Pagamento é separado do estado operacional da ordem.
 - Movimentações financeiras formam o histórico do caixa.
 - O saldo é calculado como entradas menos saídas; não existe um saldo mutável
@@ -204,7 +203,7 @@ fronteiras da aplicação e não substituem as entidades dentro do domínio.
 
 ## Estado da implementação
 
-Implementado nas duas primeiras fatias verticais:
+Implementado nas três primeiras fatias verticais:
 
 - fundação Spring Boot 4.1 e Java 21;
 - módulos `cliente` e `veiculo` nas quatro camadas;
@@ -214,7 +213,11 @@ Implementado nas duas primeiras fatias verticais:
 - módulo `usuario` com perfis `ADMIN` e `FUNCIONARIO`;
 - autenticação por formulário, senhas BCrypt e autorização de rotas;
 - gestão de usuários restrita a administradores e bootstrap do primeiro acesso;
+- módulo `ordemservico` com abertura para cliente e veículo ativos;
+- itens de serviço e peça internos ao agregado, com quantidades e valores positivos;
+- totais monetários derivados no domínio e consulta detalhada pela interface web;
+- persistência das ordens e seus itens pela migration Flyway `V3`;
 - testes de domínio, casos de uso, HTTP e persistência real com Testcontainers.
 
-Ainda planejado no desenho, mas não implementado: `ordemservico`, `financeiro`
-e `relatorio`.
+Ainda planejado no desenho, mas não implementado: transições do ciclo operacional
+da ordem, pagamento, `financeiro`, emissão de PDF e `relatorio`.

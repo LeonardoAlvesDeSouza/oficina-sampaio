@@ -5,6 +5,8 @@
     <div class="container d-flex justify-content-between">
         <a class="navbar-brand" th:href="@{/}">Oficina Sampaio</a>
         <div class="d-flex align-items-center gap-2">
+            <a th:href="@{/clientes}" class="btn btn-outline-light btn-sm">Clientes</a>
+            <a th:href="@{/ordens-servico}" class="btn btn-outline-light btn-sm">Ordens de serviço</a>
             <a th:if="${administrador}" th:href="@{/usuarios}" class="btn btn-outline-light btn-sm">Usuários</a>
             <form th:action="@{/logout}" method="post">
                 <button type="submit" class="btn btn-outline-light btn-sm">Sair</button>

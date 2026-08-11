@@ -80,11 +80,12 @@
                             <th>Ano</th>
                             <th>Cor</th>
                             <th class="text-end">Quilometragem</th>
+                            <th class="text-end">Ações</th>
                         </tr>
                         </thead>
                         <tbody>
                         <tr th:if="${veiculos.isEmpty()}">
-                            <td colspan="5" class="text-center text-body-secondary py-4">
+                            <td colspan="6" class="text-center text-body-secondary py-4">
                                 Nenhum veículo cadastrado para este cliente.
                             </td>
                         </tr>
@@ -94,6 +95,10 @@
                             <td th:text="${veiculo.ano ?: '—'}"></td>
                             <td th:text="${veiculo.cor ?: '—'}"></td>
                             <td class="text-end" th:text="${veiculo.quilometragem ?: '—'}"></td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-outline-primary"
+                                   th:href="@{/ordens-servico/nova(veiculoId=${veiculo.id})}">Abrir OS</a>
+                            </td>
                         </tr>
                         </tbody>
                     </table>

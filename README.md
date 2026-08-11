@@ -5,7 +5,7 @@ com Java, Spring Boot, Thymeleaf e PostgreSQL.
 
 ## Estado atual
 
-As duas primeiras fatias verticais estão implementadas:
+As três primeiras fatias verticais estão implementadas:
 
 - cadastro e listagem de clientes;
 - normalização e unicidade de CPF/CNPJ;
@@ -18,10 +18,14 @@ As duas primeiras fatias verticais estão implementadas:
 - perfis `ADMIN` e `FUNCIONARIO` com autorização por rota;
 - cadastro e listagem de usuários restritos ao administrador;
 - criação idempotente do administrador inicial;
+- abertura e listagem de ordens de serviço para clientes e veículos ativos;
+- inclusão de serviços e peças enquanto a ordem está aberta;
+- cálculo separado de serviços, peças e total da ordem;
+- consulta detalhada da ordem pela interface web;
 - testes de domínio, aplicação, HTTP e integração com PostgreSQL real.
 
-Os módulos de ordem de serviço, financeiro e relatórios ainda serão
-implementados.
+O ciclo operacional completo da ordem, pagamentos, financeiro e relatórios
+ainda serão implementados.
 
 ## Arquitetura
 

@@ -4,6 +4,13 @@ import br.com.oficinasampaio.cliente.application.CadastrarCliente;
 import br.com.oficinasampaio.cliente.application.CadastrarClienteCommand;
 import br.com.oficinasampaio.security.AdministradorInicialProperties;
 import br.com.oficinasampaio.security.AdministradorInicializador;
+import br.com.oficinasampaio.ordemservico.application.AbrirOrdemServico;
+import br.com.oficinasampaio.ordemservico.application.AbrirOrdemServicoCommand;
+import br.com.oficinasampaio.ordemservico.application.AdicionarItemOrdemServico;
+import br.com.oficinasampaio.ordemservico.application.AdicionarItemOrdemServicoCommand;
+import br.com.oficinasampaio.ordemservico.application.BuscarOrdemServico;
+import br.com.oficinasampaio.ordemservico.application.ListarOrdensServico;
+import br.com.oficinasampaio.ordemservico.application.TipoItemOrdemServicoView;
 import br.com.oficinasampaio.veiculo.application.CadastrarVeiculo;
 import br.com.oficinasampaio.veiculo.application.CadastrarVeiculoCommand;
 import br.com.oficinasampaio.veiculo.application.ListarVeiculosDoCliente;
@@ -25,6 +32,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.util.UUID;
+import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -64,6 +72,18 @@ class CadastroClienteVeiculoIntegrationTest {
     private ListarVeiculosDoCliente listarVeiculosDoCliente;
 
     @Autowired
+    private AbrirOrdemServico abrirOrdemServico;
+
+    @Autowired
+    private AdicionarItemOrdemServico adicionarItemOrdemServico;
+
+    @Autowired
+    private BuscarOrdemServico buscarOrdemServico;
+
+    @Autowired
+    private ListarOrdensServico listarOrdensServico;
+
+    @Autowired
     private CadastrarUsuario cadastrarUsuario;
 
     @Autowired
@@ -94,6 +114,77 @@ class CadastroClienteVeiculoIntegrationTest {
                 () -> assertEquals(cliente.id(), veiculos.getFirst().clienteId()),
                 () -> assertEquals("ABC1D23", veiculos.getFirst().placa())
         );
+    }
+
+    @Test
+    void persisteOrdemServicoESeusItensNoPostgresql() {
+        var cliente = cadastrarCliente.executar(new CadastrarClienteCommand(
+                "José Sampaio", "168.995.350-09", "11999998888", null
+        ));
+        var veiculo = cadastrarVeiculo.executar(new CadastrarVeiculoCommand(
+                cliente.id(), "GHI-7J89", "Chevrolet", "Onix",
+                2023, "Preto", 18_500L
+        ));
+        var ordem = abrirOrdemServico.executar(new AbrirOrdemServicoCommand(
+                veiculo.id(), "Troca das pastilhas de freio"
+        ));
+
+        adicionarItemOrdemServico.executar(new AdicionarItemOrdemServicoCommand(
+                ordem.id(), TipoItemOrdemServicoView.PECA, "Jogo de pastilhas",
+                new BigDecimal("1"), new BigDecimal("280.00")
+        ));
+
+        var detalhe = buscarOrdemServico.executar(ordem.id());
+        assertAll(
+                () -> assertNotNull(detalhe.id()),
+                () -> assertEquals(1, detalhe.itens().size()),
+                () -> assertEquals(new BigDecimal("280.00"), detalhe.totalPecas()),
+                () -> assertEquals(new BigDecimal("280.00"), detalhe.total())
+        );
+    }
+
+    @Test
+    void abreOrdemEAdicionaServicoPelaInterfaceWeb() throws Exception {
+        var cliente = cadastrarCliente.executar(new CadastrarClienteCommand(
+                "Paulo da Oficina", "013.837.760-05", null, null
+        ));
+        var veiculo = cadastrarVeiculo.executar(new CadastrarVeiculoCommand(
+                cliente.id(), "JKL-2M34", "Ford", "Ka",
+                2020, "Branco", 48_000L
+        ));
+
+        mockMvc.perform(post("/ordens-servico")
+                        .with(user("funcionario").roles("FUNCIONARIO"))
+                        .with(csrf())
+                        .param("veiculoId", veiculo.id().toString())
+                        .param("relatoProblema", "Barulho ao frear"))
+                .andExpect(status().is3xxRedirection());
+
+        var ordem = listarOrdensServico.executar().getFirst();
+        mockMvc.perform(post("/ordens-servico/" + ordem.id() + "/itens")
+                        .with(user("funcionario").roles("FUNCIONARIO"))
+                        .with(csrf())
+                        .param("tipo", "SERVICO")
+                        .param("descricao", "Diagnóstico do sistema de freios")
+                        .param("quantidade", "1")
+                        .param("valorUnitario", "90.00"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/ordens-servico/" + ordem.id()));
+
+        mockMvc.perform(get("/ordens-servico/" + ordem.id())
+                        .with(user("funcionario").roles("FUNCIONARIO")))
+                .andExpect(status().isOk())
+                .andExpect(view().name("ordensservico/detalhe"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Barulho ao frear")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Diagnóstico do sistema de freios")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("90,00")));
+
+        mockMvc.perform(get("/ordens-servico")
+                        .with(user("funcionario").roles("FUNCIONARIO")))
+                .andExpect(status().isOk())
+                .andExpect(view().name("ordensservico/lista"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Barulho ao frear")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("90,00")));
     }
 
     @Test

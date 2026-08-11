@@ -5,6 +5,7 @@ import br.com.oficinasampaio.veiculo.domain.VeiculoRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -24,6 +25,11 @@ class VeiculoRepositoryAdapter implements VeiculoRepository {
     @Override
     public boolean existePorPlaca(String placa) {
         return repository.existsByPlaca(placa);
+    }
+
+    @Override
+    public Optional<Veiculo> buscarPorId(UUID veiculoId) {
+        return repository.findById(veiculoId);
     }
 
     @Override
