@@ -17,3 +17,10 @@ spring:
           time_zone: UTC
   thymeleaf:
     cache: false
+
+app:
+  bootstrap-admin:
+    enabled: ${APP_BOOTSTRAP_ADMIN_ENABLED:true}
+    nome: ${APP_ADMIN_NAME:Administrador}
+    login: ${APP_ADMIN_LOGIN:admin}
+    senha: ${APP_ADMIN_PASSWORD:Oficina@123}

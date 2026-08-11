@@ -204,14 +204,17 @@ fronteiras da aplicação e não substituem as entidades dentro do domínio.
 
 ## Estado da implementação
 
-Implementado na primeira fatia vertical:
+Implementado nas duas primeiras fatias verticais:
 
 - fundação Spring Boot 4.1 e Java 21;
 - módulos `cliente` e `veiculo` nas quatro camadas;
 - contratos públicos entre Veículo e Cliente;
 - PostgreSQL 17, Flyway e Docker Compose;
 - interfaces MVC/Thymeleaf de cadastro e listagem para os dois módulos;
+- módulo `usuario` com perfis `ADMIN` e `FUNCIONARIO`;
+- autenticação por formulário, senhas BCrypt e autorização de rotas;
+- gestão de usuários restrita a administradores e bootstrap do primeiro acesso;
 - testes de domínio, casos de uso, HTTP e persistência real com Testcontainers.
 
-Ainda planejado no desenho, mas não implementado: `usuario`, `security`,
-`ordemservico`, `financeiro` e `relatorio`.
+Ainda planejado no desenho, mas não implementado: `ordemservico`, `financeiro`
+e `relatorio`.

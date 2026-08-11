@@ -5,7 +5,7 @@ com Java, Spring Boot, Thymeleaf e PostgreSQL.
 
 ## Estado atual
 
-A primeira fatia vertical está implementada:
+As duas primeiras fatias verticais estão implementadas:
 
 - cadastro e listagem de clientes;
 - normalização e unicidade de CPF/CNPJ;
@@ -14,10 +14,14 @@ A primeira fatia vertical está implementada:
 - regras de domínio para inativação e quilometragem;
 - persistência PostgreSQL com migrações Flyway;
 - telas server-side com Thymeleaf e Bootstrap;
+- autenticação por formulário com senhas BCrypt;
+- perfis `ADMIN` e `FUNCIONARIO` com autorização por rota;
+- cadastro e listagem de usuários restritos ao administrador;
+- criação idempotente do administrador inicial;
 - testes de domínio, aplicação, HTTP e integração com PostgreSQL real.
 
-Os módulos de ordem de serviço, financeiro, usuários, segurança e relatórios
-ainda serão implementados.
+Os módulos de ordem de serviço, financeiro e relatórios ainda serão
+implementados.
 
 ## Arquitetura
 
@@ -47,8 +51,18 @@ Execute a aplicação:
 mvn spring-boot:run
 ```
 
-Abra <http://localhost:8080>. A página inicial redireciona para o cadastro de
-clientes.
+Abra <http://localhost:8080>. A página inicial redireciona para o login e, após
+autenticação, para o cadastro de clientes.
+
+No primeiro início é criado um administrador de desenvolvimento:
+
+```text
+login: admin
+senha: Oficina@123
+```
+
+Defina `APP_ADMIN_PASSWORD` antes do primeiro início fora do ambiente local. O
+bootstrap não altera um usuário que já existe.
 
 As credenciais padrão do banco são apenas para desenvolvimento local e podem
 ser substituídas pelas variáveis:
@@ -57,6 +71,10 @@ ser substituídas pelas variáveis:
 DB_URL
 DB_USERNAME
 DB_PASSWORD
+APP_BOOTSTRAP_ADMIN_ENABLED
+APP_ADMIN_NAME
+APP_ADMIN_LOGIN
+APP_ADMIN_PASSWORD
 ```
 
 ## Testes

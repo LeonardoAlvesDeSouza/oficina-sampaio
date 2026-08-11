@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<body>
+<nav th:fragment="principal" class="navbar navbar-expand-lg bg-dark navbar-dark">
+    <div class="container d-flex justify-content-between">
+        <a class="navbar-brand" th:href="@{/}">Oficina Sampaio</a>
+        <div class="d-flex align-items-center gap-2">
+            <a th:if="${administrador}" th:href="@{/usuarios}" class="btn btn-outline-light btn-sm">Usuários</a>
+            <form th:action="@{/logout}" method="post">
+                <button type="submit" class="btn btn-outline-light btn-sm">Sair</button>
+            </form>
+        </div>
+    </div>
+</nav>
+</body>
+</html>
