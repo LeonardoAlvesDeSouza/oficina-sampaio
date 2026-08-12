@@ -1,21 +1,44 @@
 <!doctype html>
 <html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
 <body>
-<nav th:fragment="principal" class="navbar navbar-expand-lg bg-dark navbar-dark">
-    <div class="container d-flex flex-wrap justify-content-between gap-2">
-        <a class="navbar-brand" th:href="@{/}">Oficina Sampaio</a>
-        <div class="d-flex flex-wrap align-items-center gap-2">
-            <a th:href="@{/clientes}" class="btn btn-outline-light btn-sm">Clientes</a>
-            <a th:href="@{/ordens-servico}" class="btn btn-outline-light btn-sm">Ordens de serviço</a>
-            <a th:href="@{/pagamentos}" class="btn btn-outline-light btn-sm">Pagamentos</a>
-            <a th:href="@{/financeiro}" class="btn btn-outline-light btn-sm">Financeiro</a>
-            <a th:href="@{/relatorios}" class="btn btn-outline-light btn-sm">Relatórios</a>
-            <a th:if="${administrador}" th:href="@{/usuarios}" class="btn btn-outline-light btn-sm">Usuários</a>
-            <form th:action="@{/logout}" method="post">
-                <button type="submit" class="btn btn-outline-light btn-sm">Sair</button>
-            </form>
-        </div>
+
+<!-- Rail fixo. A seção ativa vem por parâmetro: o Thymeleaf 3.1 não expõe mais
+     a requisição nos templates, então cada tela declara onde está. -->
+<nav th:fragment="principal(secao)" class="rail">
+    <a class="rail__marca" th:href="@{/ordens-servico}">
+        <span th:replace="~{fragments/componentes :: marca}"></span>
+    </a>
+
+    <p class="rail__grupo">Pátio</p>
+    <a th:href="@{/clientes}" class="rail__link"
+       th:attr="aria-current=${secao == 'clientes' ? 'page' : null}">Clientes</a>
+    <a th:href="@{/ordens-servico}" class="rail__link"
+       th:attr="aria-current=${secao == 'ordens' ? 'page' : null}">Ordens de serviço</a>
+
+    <p class="rail__grupo">Caixa</p>
+    <a th:href="@{/pagamentos}" class="rail__link"
+       th:attr="aria-current=${secao == 'pagamentos' ? 'page' : null}">
+        Pagamentos <span class="rail__obra">em obra</span>
+    </a>
+    <a th:href="@{/financeiro}" class="rail__link"
+       th:attr="aria-current=${secao == 'financeiro' ? 'page' : null}">
+        Financeiro <span class="rail__obra">em obra</span>
+    </a>
+
+    <p class="rail__grupo">Gestão</p>
+    <a th:href="@{/relatorios}" class="rail__link"
+       th:attr="aria-current=${secao == 'relatorios' ? 'page' : null}">
+        Relatórios <span class="rail__obra">em obra</span>
+    </a>
+    <a th:if="${administrador}" th:href="@{/usuarios}" class="rail__link"
+       th:attr="aria-current=${secao == 'usuarios' ? 'page' : null}">Usuários</a>
+
+    <div class="rail__saida">
+        <form th:action="@{/logout}" method="post">
+            <button type="submit" class="rail__sair">Sair</button>
+        </form>
     </div>
 </nav>
+
 </body>
 </html>

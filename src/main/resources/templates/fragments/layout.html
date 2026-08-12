@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="cabeca(titulo)">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#191c20">
+    <title th:text="|${titulo} · Oficina Sampaio|">Oficina Sampaio</title>
+
+    <link rel="icon" th:href="@{/favicon.svg}" type="image/svg+xml">
+
+    <!-- Fontes e folha de estilo saem da própria aplicação: nada aqui depende
+         de CDN. O preload das duas variáveis latinas evita o pisca da fonte de
+         sistema nos títulos e nos números das tabelas. -->
+    <link rel="preload" th:href="@{/fontes/archivo-latin.woff2}" as="font"
+          type="font/woff2" crossorigin>
+    <link rel="preload" th:href="@{/fontes/martian-mono-latin.woff2}" as="font"
+          type="font/woff2" crossorigin>
+    <link rel="stylesheet" th:href="@{/css/oficina.css}">
+</head>
+<body>
+</body>
+</html>

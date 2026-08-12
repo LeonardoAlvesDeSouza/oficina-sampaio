@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!-- Chip de placa. O texto sai exatamente como está armazenado; o espaçamento
+     entre caracteres é só CSS, para não alterar o dado. -->
+<span th:fragment="placa(placa)" class="placa" th:text="${placa}">ABC1D23</span>
+
+<span th:fragment="placaGrande(placa)" class="placa placa--grande" th:text="${placa}">ABC1D23</span>
+
+<!-- Placa que abre alguma coisa. Existe separada porque só é link quando há
+     destino: chip com aparência de clicável e sem destino engana o usuário. -->
+<a th:fragment="placaLink(placa, destino)" class="placa" th:href="${destino}"
+   th:text="${placa}">ABC1D23</a>
+
+<!-- Estado da ordem. O data-status carrega o nome cru do enum: é o que pinta
+     o componente no CSS e o que identifica o estado sem depender do rótulo. -->
+<span th:fragment="estado(status)" class="estado"
+      th:attr="data-status=${status.name()}" th:text="${status.rotulo}">Aberta</span>
+
+<span th:fragment="estadoGrande(status)" class="estado estado--grande"
+      th:attr="data-status=${status.name()}" th:text="${status.rotulo}">Aberta</span>
+
+<!-- A marca da oficina, sempre sobre fundo escuro (rail e portaria).
+     Hoje é tipográfica: "Oficina" sobre a placa SAMPAIO. Quando chegar a logo
+     da oficina, ela entra aqui como <img class="marca__logo"> e as duas telas
+     mudam juntas — nenhuma delas sabe do que a marca é feita. -->
+<span th:fragment="marca" class="marca">
+    <span class="marca__oficina">Oficina</span>
+    <span class="placa placa--marca">SAMPAIO</span>
+</span>
+
+<span th:fragment="marcaGrande" class="marca marca--grande">
+    <span class="marca__oficina">Oficina</span>
+    <span class="placa placa--marca">SAMPAIO</span>
+</span>
+
+</body>
+</html>

@@ -1,46 +1,58 @@
 <!doctype html>
 <html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Nova ordem de serviço · Oficina Sampaio</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
-          rel="stylesheet"
-          integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
-          crossorigin="anonymous">
-</head>
-<body class="bg-body-tertiary">
-<nav th:replace="~{fragments/navegacao :: principal}"></nav>
+<head th:replace="~{fragments/layout :: cabeca('Nova ordem de serviço')}"></head>
+<body>
+<div class="oficina">
+    <nav th:replace="~{fragments/navegacao :: principal('ordens')}"></nav>
 
-<main class="container py-4">
-    <a th:href="@{/clientes/{clienteId}/veiculos(clienteId=${cliente.id})}" class="link-secondary">
-        ← Voltar para veículos
-    </a>
-    <div class="row justify-content-center mt-3">
-        <section class="col-lg-8">
-            <div class="card shadow-sm">
-                <div class="card-body p-4">
-                    <h1 class="h3">Nova ordem de serviço</h1>
-                    <p class="text-body-secondary">
-                        <strong th:text="${cliente.nome}"></strong>
-                        · <span th:text="|${veiculo.placa} — ${veiculo.marca} ${veiculo.modelo}|"></span>
-                    </p>
+    <main class="chao">
+        <a th:href="@{/clientes/{clienteId}/veiculos(clienteId=${cliente.id})}" class="voltar">
+            ← Voltar para os veículos de <span th:text="${cliente.nome}">cliente</span>
+        </a>
 
+        <header class="cabecalho-pagina">
+            <div>
+                <span class="etiqueta">Entrada no pátio</span>
+                <h1 class="estampa estampa--pagina">Nova ordem de serviço</h1>
+            </div>
+        </header>
+
+        <div class="dupla dupla--conteudo">
+            <section class="painel">
+                <div class="painel__corpo painel__corpo--largo">
                     <form th:action="@{/ordens-servico}" th:object="${form}" method="post" novalidate>
                         <input type="hidden" th:field="*{veiculoId}">
-                        <div class="mb-3">
-                            <label for="relatoProblema" class="form-label">Problema relatado</label>
-                            <textarea id="relatoProblema" rows="5" class="form-control"
-                                      th:field="*{relatoProblema}"
-                                      th:classappend="${#fields.hasErrors('relatoProblema')} ? 'is-invalid'"></textarea>
-                            <div class="invalid-feedback" th:errors="*{relatoProblema}"></div>
+                        <div class="campos">
+                            <div class="campo">
+                                <label for="relatoProblema" class="rotulo">
+                                    O que o cliente relatou
+                                </label>
+                                <textarea id="relatoProblema" rows="6" class="entrada"
+                                          placeholder="Barulho ao frear em baixa velocidade, começou na semana passada."
+                                          th:field="*{relatoProblema}"
+                                          th:classappend="${#fields.hasErrors('relatoProblema')} ? 'entrada--recusada'"></textarea>
+                                <span class="recusa" th:errors="*{relatoProblema}"></span>
+                            </div>
+                            <div class="campos__pe">
+                                <button type="submit" class="botao botao--acao">
+                                    Abrir ordem de serviço
+                                </button>
+                            </div>
                         </div>
-                        <button type="submit" class="btn btn-primary">Abrir ordem de serviço</button>
                     </form>
                 </div>
-            </div>
-        </section>
-    </div>
-</main>
+            </section>
+
+            <aside class="painel">
+                <div class="painel__corpo ficha-veiculo">
+                    <span class="etiqueta">Veículo que entra</span>
+                    <span th:replace="~{fragments/componentes :: placaGrande(${veiculo.placa})}"></span>
+                    <p class="chamada" th:text="|${veiculo.marca} ${veiculo.modelo}|">Marca Modelo</p>
+                    <p class="apoio" th:text="${cliente.nome}">Cliente</p>
+                </div>
+            </aside>
+        </div>
+    </main>
+</div>
 </body>
 </html>

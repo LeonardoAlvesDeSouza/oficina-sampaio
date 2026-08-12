@@ -62,6 +62,6 @@ public class ClienteController {
     }
 
     private void adicionarListagem(Model model) {
-        model.addAttribute("clientes", listarClientes.executar());
+        model.addAttribute("clientes", ClienteLinha.de(listarClientes.executar()));
     }
 }
