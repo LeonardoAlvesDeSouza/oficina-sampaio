@@ -11,6 +11,7 @@ public class ModulosEmConstrucaoController {
     public String pagamentos(Model model) {
         return exibir(
                 model,
+                "pagamentos",
                 "Pagamentos",
                 "Registro e acompanhamento dos pagamentos das ordens de serviço."
         );
@@ -20,6 +21,7 @@ public class ModulosEmConstrucaoController {
     public String financeiro(Model model) {
         return exibir(
                 model,
+                "financeiro",
                 "Financeiro",
                 "Entradas, saídas, movimentações e posição financeira da oficina."
         );
@@ -29,12 +31,14 @@ public class ModulosEmConstrucaoController {
     public String relatorios(Model model) {
         return exibir(
                 model,
+                "relatorios",
                 "Relatórios",
                 "Relatórios gerenciais e documentos gerados com JasperReports."
         );
     }
 
-    private String exibir(Model model, String titulo, String descricao) {
+    private String exibir(Model model, String secao, String titulo, String descricao) {
+        model.addAttribute("secao", secao);
         model.addAttribute("tituloModulo", titulo);
         model.addAttribute("descricaoModulo", descricao);
         return "standby/modulo";

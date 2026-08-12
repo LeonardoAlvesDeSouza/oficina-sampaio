@@ -13,7 +13,7 @@ flowchart TB
     browser --> security["Spring Security<br/>Autenticação e autorização"]
 
     subgraph system["Oficina Sampaio — Monólito modular Spring Boot"]
-        security --> web["Spring MVC<br/>Thymeleaf + Bootstrap"]
+        security --> web["Spring MVC<br/>Thymeleaf + CSS próprio"]
 
         subgraph modules["Módulos de negócio"]
             usuario["Usuário<br/>Contas e perfis"]

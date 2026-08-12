@@ -12,6 +12,10 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/login", "/error").permitAll()
+                        // A identidade visual precisa carregar antes do login:
+                        // a tela de entrada usa a mesma folha e as mesmas fontes.
+                        .requestMatchers("/css/**", "/fontes/**", "/img/**",
+                                "/favicon.svg", "/favicon.ico").permitAll()
                         .requestMatchers("/usuarios/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )

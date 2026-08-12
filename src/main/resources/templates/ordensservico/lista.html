@@ -1,59 +1,99 @@
 <!doctype html>
 <html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Ordens de serviço · Oficina Sampaio</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
-          rel="stylesheet"
-          integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
-          crossorigin="anonymous">
-</head>
-<body class="bg-body-tertiary">
-<nav th:replace="~{fragments/navegacao :: principal}"></nav>
+<head th:replace="~{fragments/layout :: cabeca('Ordens de serviço')}"></head>
+<body>
+<div class="oficina">
+    <nav th:replace="~{fragments/navegacao :: principal('ordens')}"></nav>
 
-<main class="container py-4">
-    <div class="d-flex align-items-center justify-content-between mb-4">
-        <div>
-            <h1 class="h3 mb-1">Ordens de serviço</h1>
-            <p class="text-body-secondary mb-0">Acompanhe serviços, peças e valores registrados.</p>
-        </div>
-        <a th:href="@{/clientes}" class="btn btn-primary">Abrir pelo veículo</a>
-    </div>
+    <main class="chao">
+        <header class="cabecalho-pagina">
+            <div>
+                <span class="etiqueta">Quadro do dia</span>
+                <h1 class="estampa estampa--pagina">Ordens de serviço</h1>
+            </div>
+            <a th:href="@{/clientes}" class="botao botao--acao">Abrir ordem pelo veículo</a>
+        </header>
 
-    <div class="card shadow-sm">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+        <!-- Fita de carga: a largura de cada pedaço é a proporção do pátio
+             naquele estado. Dá para ver de longe se a oficina está travada. -->
+        <section th:if="${painel.naOficina > 0}">
+            <span class="etiqueta">Carros na oficina</span>
+            <div class="fita">
+                <div th:each="faixa : ${painel.carga}" class="fita__faixa"
+                     th:attr="data-status=${faixa.status.name()}"
+                     th:style="'flex-grow:' + ${faixa.quantidade}">
+                    <span class="fita__quantidade" th:text="${faixa.quantidade}">0</span>
+                    <span class="fita__rotulo" th:text="${faixa.status.rotulo}">Estado</span>
+                </div>
+            </div>
+            <p class="fita__nota">
+                <span th:text="|${painel.naOficina} no pátio|">0 no pátio</span>
+                <span th:if="${painel.foraDoPatio > 0}"
+                      th:text="| · ${painel.foraDoPatio} já encerradas|"></span>
+            </p>
+        </section>
+
+        <div class="painel painel--rolagem" th:if="${!painel.grupos.isEmpty()}">
+            <table class="tabela tabela--clicavel">
+                <colgroup>
+                    <col class="col--veiculo">
+                    <col>
+                    <col class="col--abertura">
+                    <col class="col--total">
+                </colgroup>
                 <thead>
                 <tr>
-                    <th>Ordem</th>
-                    <th>Problema relatado</th>
-                    <th>Status</th>
-                    <th>Abertura</th>
-                    <th class="text-end">Total</th>
+                    <th scope="col">Veículo</th>
+                    <th scope="col">Problema relatado</th>
+                    <th scope="col">Aberta</th>
+                    <th scope="col" class="num">Total</th>
                 </tr>
                 </thead>
-                <tbody>
-                <tr th:if="${ordens.isEmpty()}">
-                    <td colspan="5" class="text-center text-body-secondary py-4">
-                        Nenhuma ordem de serviço aberta.
+
+                <!-- Um bloco por estado. O cabeçalho do bloco carrega o estado,
+                     então a linha não repete essa informação. -->
+                <tbody th:each="grupo : ${painel.grupos}" class="grupo"
+                       th:attr="data-status=${grupo.status.name()}">
+                <tr class="grupo__titulo">
+                    <td colspan="4">
+                        <span th:text="${grupo.status.rotulo}">Estado</span>
+                        <b th:text="${grupo.ordens.size()}">0</b>
                     </td>
                 </tr>
-                <tr th:each="ordem : ${ordens}">
-                    <td>
-                        <a th:href="@{/ordens-servico/{id}(id=${ordem.id})}"
-                           th:text="|#${#strings.substring(ordem.id.toString(), 0, 8)}|"></a>
+                <tr th:each="ordem : ${grupo.ordens}">
+                    <!-- O destino sai daqui pronto: parênteses de link dentro da
+                         chamada do fragmento confundem o parser. -->
+                    <td th:with="ordemUrl=@{/ordens-servico/{id}(id=${ordem.id})}">
+                        <span th:replace="~{fragments/componentes :: placaLink(${ordem.placa}, ${ordemUrl})}"></span>
+                        <span class="chamada" th:text="${ordem.veiculo}">Marca Modelo</span>
+                        <span class="apoio" th:text="${ordem.cliente}">Cliente</span>
                     </td>
-                    <td th:text="${ordem.relatoProblema}"></td>
-                    <td><span class="badge text-bg-primary" th:text="${ordem.status}"></span></td>
-                    <td th:text="${ordem.abertaEm}"></td>
-                    <td class="text-end"
-                        th:text="|R$ ${#numbers.formatDecimal(ordem.total, 1, 'POINT', 2, 'COMMA')}|"></td>
+                    <td th:text="${ordem.relatoProblema}">Problema</td>
+                    <td>
+                        <span class="dado" th:text="${ordem.abertaEm}">00/00/00</span>
+                        <a class="ordem-numero"
+                           th:href="@{/ordens-servico/{id}(id=${ordem.id})}"
+                           th:text="|OS ${ordem.numero}|">OS 00000000</a>
+                    </td>
+                    <td class="num">
+                        <span class="dado dado--forte"
+                              th:text="|R$ ${#numbers.formatDecimal(ordem.total, 1, 'POINT', 2, 'COMMA')}|">R$ 0,00</span>
+                    </td>
                 </tr>
                 </tbody>
             </table>
         </div>
-    </div>
-</main>
+
+        <div class="painel" th:if="${painel.grupos.isEmpty()}">
+            <div class="painel__corpo painel__corpo--largo nada-aqui">
+                <h2 class="estampa estampa--painel">Nenhuma ordem registrada</h2>
+                <p class="legenda">
+                    Abra a primeira ordem a partir do veículo do cliente.
+                </p>
+                <a th:href="@{/clientes}" class="botao botao--acao">Escolher o veículo</a>
+            </div>
+        </div>
+    </main>
+</div>
 </body>
 </html>

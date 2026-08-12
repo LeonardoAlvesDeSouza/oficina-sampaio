@@ -1,92 +1,118 @@
 <!doctype html>
 <html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Clientes · Oficina Sampaio</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
-          rel="stylesheet"
-          integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
-          crossorigin="anonymous">
-</head>
-<body class="bg-body-tertiary">
-<nav th:replace="~{fragments/navegacao :: principal}"></nav>
+<head th:replace="~{fragments/layout :: cabeca('Clientes')}"></head>
+<body>
+<div class="oficina">
+    <nav th:replace="~{fragments/navegacao :: principal('clientes')}"></nav>
 
-<main class="container py-4">
-    <div class="row g-4">
-        <section class="col-lg-4">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <h1 class="h4 mb-3">Novo cliente</h1>
+    <main class="chao">
+        <header class="cabecalho-pagina">
+            <div>
+                <span class="etiqueta">Cadastro</span>
+                <h1 class="estampa estampa--pagina">Clientes</h1>
+            </div>
+            <span class="dado" th:text="|${clientes.size()} no cadastro|">0 no cadastro</span>
+        </header>
+
+        <div class="dupla">
+            <section class="painel">
+                <div class="painel__cabeca">
+                    <h2 class="estampa estampa--painel">Novo cliente</h2>
+                </div>
+                <div class="painel__corpo">
                     <form th:action="@{/clientes}" th:object="${form}" method="post" novalidate>
-                        <div class="mb-3">
-                            <label for="nome" class="form-label">Nome</label>
-                            <input id="nome" class="form-control" th:field="*{nome}"
-                                   th:classappend="${#fields.hasErrors('nome')} ? 'is-invalid'">
-                            <div class="invalid-feedback" th:errors="*{nome}"></div>
+                        <div class="campos">
+                            <div class="campo">
+                                <label for="nome" class="rotulo">Nome</label>
+                                <input id="nome" class="entrada" th:field="*{nome}"
+                                       th:classappend="${#fields.hasErrors('nome')} ? 'entrada--recusada'">
+                                <span class="recusa" th:errors="*{nome}"></span>
+                            </div>
+                            <div class="campo">
+                                <label for="cpfCnpj" class="rotulo">CPF ou CNPJ</label>
+                                <input id="cpfCnpj" class="entrada" th:field="*{cpfCnpj}"
+                                       th:classappend="${#fields.hasErrors('cpfCnpj')} ? 'entrada--recusada'">
+                                <span class="recusa" th:errors="*{cpfCnpj}"></span>
+                            </div>
+                            <div class="campo">
+                                <label for="telefone" class="rotulo">Telefone</label>
+                                <input id="telefone" class="entrada" th:field="*{telefone}">
+                            </div>
+                            <div class="campo">
+                                <label for="email" class="rotulo">E-mail</label>
+                                <input id="email" type="email" class="entrada" th:field="*{email}"
+                                       th:classappend="${#fields.hasErrors('email')} ? 'entrada--recusada'">
+                                <span class="recusa" th:errors="*{email}"></span>
+                            </div>
+                            <div class="campos__pe">
+                                <button type="submit" class="botao botao--acao botao--cheio">
+                                    Cadastrar cliente
+                                </button>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="cpfCnpj" class="form-label">CPF/CNPJ</label>
-                            <input id="cpfCnpj" class="form-control" th:field="*{cpfCnpj}"
-                                   th:classappend="${#fields.hasErrors('cpfCnpj')} ? 'is-invalid'">
-                            <div class="invalid-feedback" th:errors="*{cpfCnpj}"></div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="telefone" class="form-label">Telefone</label>
-                            <input id="telefone" class="form-control" th:field="*{telefone}">
-                        </div>
-                        <div class="mb-3">
-                            <label for="email" class="form-label">E-mail</label>
-                            <input id="email" type="email" class="form-control" th:field="*{email}"
-                                   th:classappend="${#fields.hasErrors('email')} ? 'is-invalid'">
-                            <div class="invalid-feedback" th:errors="*{email}"></div>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">Cadastrar cliente</button>
                     </form>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <section class="col-lg-8">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h2 class="h4 mb-0">Clientes</h2>
-                <span class="text-body-secondary" th:text="|${clientes.size()} cadastrado(s)|"></span>
-            </div>
-
-            <div class="card shadow-sm">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
+            <section>
+                <!-- A linha inteira reage porque o nome abre os veículos do
+                     cliente; o botão é o mesmo caminho, dito por escrito. -->
+                <div class="painel painel--rolagem" th:if="${!clientes.isEmpty()}">
+                    <table class="tabela tabela--clicavel">
+                        <colgroup>
+                            <col>
+                            <col class="col--abertura">
+                            <col class="col--veiculo">
+                            <col class="col--total">
+                        </colgroup>
                         <thead>
                         <tr>
-                            <th>Nome</th>
-                            <th>CPF/CNPJ</th>
-                            <th>Telefone</th>
-                            <th>E-mail</th>
-                            <th></th>
+                            <th scope="col">Nome</th>
+                            <th scope="col">CPF/CNPJ</th>
+                            <th scope="col">Contato</th>
+                            <th scope="col" class="tabela__acoes">Veículos</th>
                         </tr>
                         </thead>
                         <tbody>
-                        <tr th:if="${clientes.isEmpty()}">
-                            <td colspan="5" class="text-center text-body-secondary py-4">
-                                Nenhum cliente cadastrado.
-                            </td>
-                        </tr>
                         <tr th:each="cliente : ${clientes}">
-                            <td th:text="${cliente.nome}"></td>
-                            <td th:text="${cliente.cpfCnpj ?: '—'}"></td>
-                            <td th:text="${cliente.telefone ?: '—'}"></td>
-                            <td th:text="${cliente.email ?: '—'}"></td>
-                            <td class="text-end">
-                                <a class="btn btn-sm btn-outline-primary"
-                                   th:href="@{/clientes/{id}/veiculos(id=${cliente.id})}">Veículos</a>
+                            <td>
+                                <a class="chamada"
+                                   th:href="@{/clientes/{id}/veiculos(id=${cliente.id})}"
+                                   th:text="${cliente.nome}">Nome</a>
+                            </td>
+                            <td>
+                                <span class="dado" th:if="${cliente.documento}"
+                                      th:text="${cliente.documento}">000.000.000-00</span>
+                                <span class="vazio" th:unless="${cliente.documento}">—</span>
+                            </td>
+                            <td>
+                                <span class="dado" th:if="${cliente.telefone}"
+                                      th:text="${cliente.telefone}">(00) 00000-0000</span>
+                                <span class="apoio" th:if="${cliente.email}"
+                                      th:text="${cliente.email}">E-mail</span>
+                                <span class="vazio" th:if="${cliente.semContato()}">—</span>
+                            </td>
+                            <td class="tabela__acoes">
+                                <a class="botao botao--chapa botao--pequeno"
+                                   th:href="@{/clientes/{id}/veiculos(id=${cliente.id})}">Ver veículos</a>
                             </td>
                         </tr>
                         </tbody>
                     </table>
                 </div>
-            </div>
-        </section>
-    </div>
-</main>
+
+                <div class="painel" th:if="${clientes.isEmpty()}">
+                    <div class="painel__corpo painel__corpo--largo nada-aqui">
+                        <h2 class="estampa estampa--painel">Cadastro vazio</h2>
+                        <p class="legenda">
+                            Cadastre o primeiro cliente no formulário ao lado. Depois dele vêm os
+                            veículos, e do veículo sai a ordem de serviço.
+                        </p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+</div>
 </body>
 </html>

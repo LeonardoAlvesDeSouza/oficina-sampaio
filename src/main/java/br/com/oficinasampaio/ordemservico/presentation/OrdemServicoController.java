@@ -12,6 +12,7 @@ import br.com.oficinasampaio.ordemservico.application.BuscarOrdemServico;
 import br.com.oficinasampaio.ordemservico.application.ListarOrdensServico;
 import br.com.oficinasampaio.ordemservico.application.OrdemServicoDetalheView;
 import br.com.oficinasampaio.shared.domain.RegraNegocioException;
+import br.com.oficinasampaio.shared.presentation.FormatoOficina;
 import br.com.oficinasampaio.shared.presentation.PerfilAutenticado;
 import br.com.oficinasampaio.shared.presentation.WebExceptionHandler;
 import br.com.oficinasampaio.veiculo.application.VeiculoQueries;
@@ -65,7 +66,14 @@ public class OrdemServicoController {
 
     @GetMapping
     public String listar(Model model) {
-        model.addAttribute("ordens", listarOrdensServico.executar());
+        var linhas = listarOrdensServico.executar().stream()
+                .map(ordem -> OrdemServicoLinha.de(
+                        ordem,
+                        veiculoQueries.obterPorId(ordem.veiculoId()),
+                        buscarCliente.executar(ordem.clienteId())
+                ))
+                .toList();
+        model.addAttribute("painel", PainelOrdens.montar(linhas));
         return "ordensservico/lista";
     }
 
@@ -181,6 +189,9 @@ public class OrdemServicoController {
         model.addAttribute("acoes", acoesPermitidas(ordem, authentication));
         model.addAttribute("veiculo", veiculo);
         model.addAttribute("cliente", buscarCliente.executar(ordem.clienteId()));
+        model.addAttribute("numeroOrdem", FormatoOficina.numeroOrdem(ordem.id()));
+        model.addAttribute("abertaEm", FormatoOficina.dataHora(ordem.abertaEm()));
+        model.addAttribute("trilha", TrilhaOrdemServico.de(ordem.status()));
     }
 
     private static List<AcaoOrdemServicoView> acoesPermitidas(

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: cabeca(${aviso.titulo})}"></head>
+<body>
+<!-- Sem rail: quem chega aqui pode nem estar autenticado, e a única coisa útil
+     na tela é entender o que houve e ter uma saída. -->
+<main class="aviso">
+    <div class="aviso__cartao">
+        <p class="aviso__codigo" th:text="${aviso.codigo}">500</p>
+        <h1 class="estampa estampa--painel" th:text="${aviso.titulo}">Falha no sistema</h1>
+        <p class="legenda" th:text="${aviso.explicacao}">Explicação do que aconteceu.</p>
+
+        <p class="aviso__detalhe" th:if="${aviso.detalhe}" th:text="${aviso.detalhe}">Detalhe</p>
+
+        <div class="aviso__saida">
+            <a th:href="@{/ordens-servico}" class="botao botao--acao">
+                Voltar para o quadro de ordens
+            </a>
+        </div>
+    </div>
+</main>
+</body>
+</html>

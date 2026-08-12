@@ -1,0 +1,18 @@
+Fontes servidas pela aplicação
+==============================
+
+Archivo e Martian Mono, nos recortes latin e latin-ext, nas versões variáveis
+(eixos wdth e wght). Baixadas de fonts.gstatic.com via a API do Google Fonts.
+
+    Archivo       — SIL Open Font License 1.1 — Omnibus-Type
+                    https://fonts.google.com/specimen/Archivo
+    Martian Mono  — SIL Open Font License 1.1 — Evil Martians
+                    https://fonts.google.com/specimen/Martian+Mono
+
+A OFL permite redistribuir os arquivos junto com a aplicação, e é por isso que
+eles estão aqui em vez de vir da CDN: a oficina trabalha em rede local e uma
+queda de internet não pode mudar a cara do sistema no meio do expediente.
+
+Os @font-face que apontam para estes arquivos estão em static/css/oficina.css.
+Para atualizar uma fonte, troque o .woff2 e confira o unicode-range do recorte
+correspondente — os dois precisam continuar casando.

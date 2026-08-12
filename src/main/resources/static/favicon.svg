@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img"
+     aria-label="Oficina Sampaio">
+    <title>Oficina Sampaio</title>
+    <!-- A placa, a mesma assinatura do sistema: faixa azul em cima, chapa
+         clara, os caracteres reduzidos a duas barras para ler a 16px. -->
+    <clipPath id="chapa">
+        <rect x="2" y="7" width="28" height="18" rx="3"/>
+    </clipPath>
+    <g clip-path="url(#chapa)">
+        <rect x="2" y="7" width="28" height="18" fill="#fbfcfd"/>
+        <rect x="2" y="7" width="28" height="5" fill="#1b3a8f"/>
+        <rect x="6" y="15.4" width="20" height="2.8" rx="1.4" fill="#191c20"/>
+        <rect x="6" y="19.6" width="12" height="2.8" rx="1.4" fill="#d8511c"/>
+    </g>
+    <rect x="2" y="7" width="28" height="18" rx="3" fill="none" stroke="#191c20"
+          stroke-width="2.4"/>
+</svg>

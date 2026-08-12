@@ -13,7 +13,8 @@ As quatro primeiras fatias verticais estão implementadas:
 - normalização e unicidade de placa;
 - regras de domínio para inativação e quilometragem;
 - persistência PostgreSQL com migrações Flyway;
-- telas server-side com Thymeleaf e Bootstrap;
+- telas server-side com Thymeleaf e sistema visual próprio, sem CDN — CSS e
+  fontes servidos pela aplicação, para a oficina não depender de internet;
 - autenticação por formulário com senhas BCrypt;
 - perfis `ADMIN` e `FUNCIONARIO` com autorização por rota;
 - cadastro e listagem de usuários restritos ao administrador;

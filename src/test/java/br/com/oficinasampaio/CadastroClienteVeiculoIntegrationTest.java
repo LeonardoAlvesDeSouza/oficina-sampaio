@@ -385,7 +385,10 @@ class CadastroClienteVeiculoIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("clientes/lista"))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("João da Oficina")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("11144477735")));
+                // O cadastro guarda só dígitos, mas a listagem devolve o documento e
+                // o telefone pontuados: é assim que se confere em voz alta no balcão.
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("111.444.777-35")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("(11) 98888-7777")));
     }
 
     @Test

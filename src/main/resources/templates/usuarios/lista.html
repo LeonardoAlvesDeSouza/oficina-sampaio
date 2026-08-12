@@ -1,101 +1,110 @@
 <!doctype html>
 <html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Usuários · Oficina Sampaio</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
-          rel="stylesheet"
-          integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
-          crossorigin="anonymous">
-</head>
-<body class="bg-body-tertiary">
-<nav th:replace="~{fragments/navegacao :: principal}"></nav>
+<head th:replace="~{fragments/layout :: cabeca('Usuários')}"></head>
+<body>
+<div class="oficina">
+    <nav th:replace="~{fragments/navegacao :: principal('usuarios')}"></nav>
 
-<main class="container py-4">
-    <div class="d-flex align-items-center justify-content-between mb-4">
-        <div>
-            <a th:href="@{/clientes}" class="link-secondary">← Voltar para clientes</a>
-            <h1 class="h3 mt-2 mb-0">Usuários</h1>
-        </div>
-        <span class="text-body-secondary" th:text="|${usuarios.size()} cadastrado(s)|"></span>
-    </div>
+    <main class="chao">
+        <header class="cabecalho-pagina">
+            <div>
+                <span class="etiqueta">Acesso ao sistema</span>
+                <h1 class="estampa estampa--pagina">Usuários</h1>
+            </div>
+            <span class="dado" th:text="|${usuarios.size()} com acesso|">0 com acesso</span>
+        </header>
 
-    <div class="row g-4">
-        <section class="col-lg-4">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <h2 class="h5 mb-3">Novo usuário</h2>
+        <div class="dupla">
+            <section class="painel">
+                <div class="painel__cabeca">
+                    <h2 class="estampa estampa--painel">Novo usuário</h2>
+                </div>
+                <div class="painel__corpo">
                     <form th:action="@{/usuarios}" th:object="${form}" method="post" novalidate>
-                        <div class="mb-3">
-                            <label for="nome" class="form-label">Nome</label>
-                            <input id="nome" class="form-control" th:field="*{nome}"
-                                   th:classappend="${#fields.hasErrors('nome')} ? 'is-invalid'">
-                            <div class="invalid-feedback" th:errors="*{nome}"></div>
+                        <div class="campos">
+                            <div class="campo">
+                                <label for="nome" class="rotulo">Nome</label>
+                                <input id="nome" class="entrada" th:field="*{nome}"
+                                       th:classappend="${#fields.hasErrors('nome')} ? 'entrada--recusada'">
+                                <span class="recusa" th:errors="*{nome}"></span>
+                            </div>
+                            <div class="campo">
+                                <label for="login" class="rotulo">Login</label>
+                                <input id="login" class="entrada" th:field="*{login}"
+                                       autocomplete="off"
+                                       th:classappend="${#fields.hasErrors('login')} ? 'entrada--recusada'">
+                                <span class="recusa" th:errors="*{login}"></span>
+                            </div>
+                            <div class="campo">
+                                <label for="senha" class="rotulo">Senha inicial</label>
+                                <input id="senha" type="password" class="entrada" th:field="*{senha}"
+                                       autocomplete="new-password"
+                                       th:classappend="${#fields.hasErrors('senha')} ? 'entrada--recusada'">
+                                <span class="recusa" th:errors="*{senha}"></span>
+                            </div>
+                            <div class="campo">
+                                <label for="perfil" class="rotulo">Perfil</label>
+                                <select id="perfil" class="entrada" th:field="*{perfil}"
+                                        th:classappend="${#fields.hasErrors('perfil')} ? 'entrada--recusada'">
+                                    <option value="">Selecione</option>
+                                    <option th:each="perfil : ${perfis}" th:value="${perfil}"
+                                            th:text="${perfil}"></option>
+                                </select>
+                                <span class="recusa" th:errors="*{perfil}"></span>
+                            </div>
+                            <div class="campos__pe">
+                                <button type="submit" class="botao botao--acao botao--cheio">
+                                    Cadastrar usuário
+                                </button>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="login" class="form-label">Login</label>
-                            <input id="login" class="form-control" th:field="*{login}"
-                                   autocomplete="off"
-                                   th:classappend="${#fields.hasErrors('login')} ? 'is-invalid'">
-                            <div class="invalid-feedback" th:errors="*{login}"></div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="senha" class="form-label">Senha inicial</label>
-                            <input id="senha" type="password" class="form-control" th:field="*{senha}"
-                                   autocomplete="new-password"
-                                   th:classappend="${#fields.hasErrors('senha')} ? 'is-invalid'">
-                            <div class="invalid-feedback" th:errors="*{senha}"></div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="perfil" class="form-label">Perfil</label>
-                            <select id="perfil" class="form-select" th:field="*{perfil}"
-                                    th:classappend="${#fields.hasErrors('perfil')} ? 'is-invalid'">
-                                <option value="">Selecione</option>
-                                <option th:each="perfil : ${perfis}" th:value="${perfil}" th:text="${perfil}"></option>
-                            </select>
-                            <div class="invalid-feedback" th:errors="*{perfil}"></div>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">Cadastrar usuário</button>
                     </form>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <section class="col-lg-8">
-            <div class="card shadow-sm">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
+            <section>
+                <div class="painel painel--rolagem">
+                    <table class="tabela">
+                        <colgroup>
+                            <col>
+                            <col class="col--veiculo">
+                            <col class="col--medida">
+                            <col class="col--total">
+                        </colgroup>
                         <thead>
                         <tr>
-                            <th>Nome</th>
-                            <th>Login</th>
-                            <th>Perfil</th>
-                            <th>Status</th>
+                            <th scope="col">Nome</th>
+                            <th scope="col">Login</th>
+                            <th scope="col">Perfil</th>
+                            <th scope="col" class="tabela__acoes">Acesso</th>
                         </tr>
                         </thead>
                         <tbody>
                         <tr th:if="${usuarios.isEmpty()}">
-                            <td colspan="4" class="text-center text-body-secondary py-4">
-                                Nenhum usuário cadastrado.
-                            </td>
+                            <td colspan="4" class="tabela__nada">Nenhum usuário cadastrado.</td>
                         </tr>
                         <tr th:each="usuario : ${usuarios}">
-                            <td th:text="${usuario.nome}"></td>
-                            <td th:text="${usuario.login}"></td>
-                            <td th:text="${usuario.perfil}"></td>
                             <td>
-                                <span class="badge"
-                                      th:classappend="${usuario.ativo} ? 'text-bg-success' : 'text-bg-secondary'"
-                                      th:text="${usuario.ativo} ? 'Ativo' : 'Inativo'"></span>
+                                <span class="chamada" th:text="${usuario.nome}">Nome</span>
+                            </td>
+                            <td>
+                                <span class="dado" th:text="${usuario.login}">login</span>
+                            </td>
+                            <td>
+                                <span class="tipo-item" th:text="${usuario.perfil}">PERFIL</span>
+                            </td>
+                            <td class="tabela__acoes">
+                                <span class="estado"
+                                      th:classappend="${usuario.ativo} ? 'estado--ativo' : 'estado--inativo'"
+                                      th:text="${usuario.ativo} ? 'Ativo' : 'Inativo'">Ativo</span>
                             </td>
                         </tr>
                         </tbody>
                     </table>
                 </div>
-            </div>
-        </section>
-    </div>
-</main>
+            </section>
+        </div>
+    </main>
+</div>
 </body>
 </html>

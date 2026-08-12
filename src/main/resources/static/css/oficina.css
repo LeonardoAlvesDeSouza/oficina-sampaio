@@ -1,0 +1,1471 @@
+/*
+ * Oficina Sampaio — sistema visual
+ *
+ * Chão de aço galvanizado, azul da faixa Mercosul como cor estrutural,
+ * laranja de bancada para o que está acontecendo agora.
+ *
+ * Hachura diagonal significa uma coisa só em todo o sistema: travado,
+ * não prossiga. Aparece em "aguardando peça" e em módulo em construção.
+ *
+ * Não há framework por baixo: a oficina roda em rede local e uma CDN fora
+ * do ar não pode desmontar a tela. Todo componente é definido aqui, no mesmo
+ * vocabulário do domínio — painel, chão, fita, placa, estado.
+ */
+
+/* ------------------------------------------------------------------- fontes */
+
+/* Servidas pela própria aplicação, pelo mesmo motivo: sem internet a oficina
+   continua com a cara dela. Só os recortes latinos — é o que o português usa.
+   Variáveis nos dois eixos: a largura (wdth) é o que dá o ar de sinalização
+   aos títulos e o que aperta os dados nas colunas. Ver static/fontes/LEIA.txt */
+@font-face {
+    font-family: "Archivo";
+    font-style: normal;
+    font-weight: 400 800;
+    font-stretch: 75% 125%;
+    font-display: swap;
+    src: url("../fontes/archivo-latin.woff2") format("woff2");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: "Archivo";
+    font-style: normal;
+    font-weight: 400 800;
+    font-stretch: 75% 125%;
+    font-display: swap;
+    src: url("../fontes/archivo-latin-ext.woff2") format("woff2");
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+    font-family: "Martian Mono";
+    font-style: normal;
+    font-weight: 400 700;
+    font-stretch: 87.5% 112.5%;
+    font-display: swap;
+    src: url("../fontes/martian-mono-latin.woff2") format("woff2");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: "Martian Mono";
+    font-style: normal;
+    font-weight: 400 700;
+    font-stretch: 87.5% 112.5%;
+    font-display: swap;
+    src: url("../fontes/martian-mono-latin-ext.woff2") format("woff2");
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root {
+    /* superfícies e estrutura */
+    --aco: #e7eaee;
+    --chapa: #ffffff;
+    --chapa-2: #f2f4f7;
+    --grafite: #191c20;
+    --risco: #cdd2d9;
+    --risco-claro: #e4e8ed;
+    --limalha: #8a9199;
+
+    /* cores de estado */
+    --placa-azul: #1b3a8f;
+    --placa-azul-escuro: #12276b;
+    --bancada: #d8511c;
+    --bancada-escura: #b04113;
+    --bancada-cravada: #99380f;
+    --liberado: #1c7a49;
+    --liberado-escuro: #125c36;
+    --sirene: #a62b1f;
+    --sirene-escura: #8a2117;
+
+    /* tintas de fundo derivadas dos estados */
+    --tinta-bancada: #fdf0e9;
+    --tinta-liberado: #e9f4ee;
+    --tinta-sirene: #f9edeb;
+    --risco-liberado: #c7e2d3;
+    --risco-sirene: #e3c4c0;
+
+    --sans: "Archivo", "Segoe UI", system-ui, sans-serif;
+    --mono: "Martian Mono", ui-monospace, "Cascadia Mono", monospace;
+
+    --hachura: repeating-linear-gradient(135deg,
+    rgba(25, 28, 32, .16) 0 4px, transparent 4px 9px);
+}
+
+/* ---------------------------------------------------------------- fundações */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background-color: var(--aco);
+    color: var(--grafite);
+    font: 400 .9375rem/1.5 var(--sans);
+    -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, p, dl, dd, figure, blockquote {
+    margin: 0;
+}
+
+img, svg {
+    display: block;
+    max-width: 100%;
+}
+
+button, input, select, textarea {
+    font: inherit;
+    color: inherit;
+}
+
+a {
+    color: var(--placa-azul);
+}
+
+a:hover {
+    color: var(--placa-azul-escuro);
+}
+
+:focus-visible {
+    outline: 2px solid var(--bancada);
+    outline-offset: 2px;
+}
+
+/* Texto que só o leitor de tela precisa ouvir */
+.so-leitor {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- tipografia */
+
+/* Títulos estampados: Archivo em largura expandida, como placa de sinalização
+   de oficina. Usado com parcimônia — só h1 e cabeçalhos de painel. */
+.estampa {
+    font-family: var(--sans);
+    font-variation-settings: "wdth" 115;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: -.005em;
+    line-height: 1.05;
+    color: var(--grafite);
+    margin: 0;
+}
+
+.estampa--pagina {
+    font-size: clamp(1.5rem, 1.2rem + 1.1vw, 1.9rem);
+}
+
+.estampa--painel {
+    font-size: 1.0625rem;
+    letter-spacing: .005em;
+}
+
+/* Etiqueta: rótulo pequeno que nomeia uma seção ou um dado */
+.etiqueta {
+    display: block;
+    font-size: .6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .14em;
+    color: var(--limalha);
+    margin: 0 0 .35rem;
+}
+
+.legenda {
+    color: var(--limalha);
+    font-size: .875rem;
+    margin: 0;
+}
+
+/* Ritmo vertical entre título e explicação, sem classe de espaçamento solta */
+.estampa + .legenda {
+    margin-top: .4rem;
+}
+
+/* Dados: só placa, número de OS, dinheiro e quilometragem */
+.dado {
+    font-family: var(--mono);
+    font-variation-settings: "wdth" 87.5;
+    font-variant-numeric: tabular-nums;
+    font-size: .8125rem;
+    letter-spacing: -.01em;
+    white-space: nowrap;
+}
+
+.dado--forte {
+    font-weight: 700;
+}
+
+.vazio {
+    color: var(--risco);
+}
+
+.relato {
+    margin: 0;
+    max-width: 62ch;
+}
+
+/* ------------------------------------------------------------------ estrutura */
+
+.oficina {
+    display: grid;
+    grid-template-columns: 15rem minmax(0, 1fr);
+    min-height: 100vh;
+}
+
+.chao {
+    padding: 2rem 2.25rem 4.5rem;
+    max-width: 84rem;
+    min-width: 0;
+}
+
+.cabecalho-pagina {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: 1.1rem;
+    margin-bottom: 1.6rem;
+    border-bottom: 2px solid var(--grafite);
+}
+
+/* Placa grande ao lado do nome do veículo e do cliente */
+.identificacao {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.voltar {
+    display: inline-block;
+    font-size: .8125rem;
+    font-weight: 600;
+    color: var(--limalha);
+    text-decoration: none;
+    margin-bottom: .5rem;
+}
+
+.voltar:hover {
+    color: var(--grafite);
+}
+
+/* Duas colunas: cadastro estreito à esquerda, lista larga à direita */
+.dupla {
+    display: grid;
+    grid-template-columns: minmax(0, 21rem) minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+}
+
+/* Peso invertido: o conteúdo manda e a lateral é apoio (totais, ficha) */
+.dupla--conteudo {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 21rem);
+}
+
+/* Painéis empilhados dentro de uma coluna */
+.pilha {
+    display: grid;
+    gap: 1.5rem;
+    align-content: start;
+}
+
+/* ---------------------------------------------------------------------- rail */
+
+.rail {
+    background: var(--grafite);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    gap: .1rem;
+    padding: 1.4rem 1rem 1rem;
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+}
+
+.rail__marca {
+    display: block;
+    text-decoration: none;
+    margin-bottom: 1.4rem;
+}
+
+.rail__grupo {
+    font-size: .625rem;
+    font-weight: 700;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, .38);
+    margin: 1.25rem 0 .45rem .7rem;
+}
+
+.rail__link {
+    display: block;
+    padding: .55rem .7rem;
+    border-radius: 3px;
+    color: rgba(255, 255, 255, .74);
+    text-decoration: none;
+    font-size: .875rem;
+    font-weight: 500;
+    white-space: nowrap;
+    box-shadow: inset 2px 0 0 transparent;
+    transition: background-color .12s ease, color .12s ease;
+}
+
+.rail__link:hover {
+    background: rgba(255, 255, 255, .07);
+    color: #fff;
+}
+
+.rail__link[aria-current="page"] {
+    background: rgba(255, 255, 255, .1);
+    color: #fff;
+    font-weight: 600;
+    box-shadow: inset 2px 0 0 var(--bancada);
+}
+
+/* Marca módulo que ainda não está no ar. Era um quadrado hachurado, mas a 8px
+   a hachura não lê e o quadrado passava por ícone de "abrir em outra janela" —
+   escrito não há como confundir. */
+.rail__obra {
+    display: inline-block;
+    margin-left: .4rem;
+    padding: .1rem .3rem;
+    border: 1px solid rgba(255, 255, 255, .22);
+    border-radius: 2px;
+    vertical-align: middle;
+    font-size: .5625rem;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, .5);
+}
+
+.rail__saida {
+    margin-top: auto;
+    padding-top: 1rem;
+}
+
+.rail__sair {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: 0;
+    border-top: 1px solid rgba(255, 255, 255, .12);
+    padding: .8rem .7rem 0;
+    color: rgba(255, 255, 255, .6);
+    font: 500 .875rem/1 var(--sans);
+    cursor: pointer;
+}
+
+.rail__sair:hover {
+    color: #fff;
+}
+
+/* ------------------------------------------------------------------- a marca */
+
+/* Assinatura da oficina em fundo escuro. Hoje é tipográfica: "Oficina" sobre
+   a placa SAMPAIO. Quando entrar a logo da oficina, ela ocupa .marca__logo e o
+   rail e a portaria mudam juntos — nenhuma tela precisa saber disso. */
+.marca {
+    display: block;
+}
+
+.marca__oficina {
+    display: block;
+    font-size: .625rem;
+    font-weight: 700;
+    letter-spacing: .3em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, .5);
+    margin: 0 0 .45rem .1rem;
+}
+
+.marca__logo {
+    max-width: 100%;
+    height: auto;
+}
+
+.marca--grande .marca__oficina {
+    font-size: .6875rem;
+    letter-spacing: .32em;
+    margin-bottom: .6rem;
+}
+
+.marca--grande .placa {
+    font-size: 1.25rem;
+    border-width: 2px;
+}
+
+/* ------------------------------------------------------- assinatura: a placa */
+
+/* Mecânico não chama carro por nome de cliente: chama por placa.
+   Faixa azul superior desenhada com gradiente, sem elemento extra.
+   O texto sai literal — o espaçamento é só letter-spacing. */
+.placa {
+    display: inline-flex;
+    align-items: flex-end;
+    justify-content: center;
+    background: linear-gradient(var(--placa-azul) 0 .38em, #fbfcfd .38em 100%);
+    border: 1.5px solid var(--grafite);
+    border-radius: .25em;
+    padding: .5em .55em .3em;
+    font-family: var(--mono);
+    font-variation-settings: "wdth" 100;
+    font-weight: 700;
+    font-size: .75rem;
+    line-height: 1;
+    letter-spacing: .1em;
+    text-indent: .1em;
+    text-transform: uppercase;
+    color: var(--grafite);
+    white-space: nowrap;
+    box-shadow: inset 0 -1px 0 rgba(25, 28, 32, .12);
+}
+
+a.placa {
+    text-decoration: none;
+    transition: box-shadow .12s ease;
+}
+
+a.placa:hover,
+a.placa:focus-visible {
+    color: var(--grafite);
+    box-shadow: inset 0 -1px 0 rgba(25, 28, 32, .12), 0 0 0 2px rgba(27, 58, 143, .3);
+}
+
+.placa--grande {
+    font-size: 1.0625rem;
+    border-width: 2px;
+}
+
+.placa--marca {
+    font-size: 1.0625rem;
+    border-color: #fff;
+    box-shadow: none;
+}
+
+/* ------------------------------------------------------------------- estados */
+
+.estado {
+    display: inline-flex;
+    align-items: center;
+    gap: .45em;
+    padding: .4em .6em;
+    border: 1px solid var(--risco);
+    border-radius: 2px;
+    background: var(--chapa-2);
+    font-size: .6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .09em;
+    line-height: 1;
+    color: var(--grafite);
+    white-space: nowrap;
+}
+
+.estado::before {
+    content: "";
+    width: .5em;
+    height: .5em;
+    border-radius: 50%;
+    background: var(--limalha);
+    flex: none;
+}
+
+.estado--grande {
+    font-size: .8125rem;
+    padding: .55em .75em;
+}
+
+.estado[data-status="EM_EXECUCAO"] {
+    border-color: var(--bancada);
+    background: var(--tinta-bancada);
+    color: var(--bancada-escura);
+}
+
+.estado[data-status="EM_EXECUCAO"]::before {
+    background: var(--bancada);
+}
+
+.estado[data-status="AGUARDANDO_PECA"] {
+    border-color: var(--grafite);
+    background-color: var(--chapa-2);
+    background-image: var(--hachura);
+}
+
+.estado[data-status="AGUARDANDO_PECA"]::before {
+    background: var(--grafite);
+}
+
+.estado[data-status="FINALIZADA"] {
+    border-color: var(--liberado);
+    background: var(--tinta-liberado);
+    color: var(--liberado-escuro);
+}
+
+.estado[data-status="FINALIZADA"]::before {
+    background: var(--liberado);
+}
+
+.estado[data-status="ENTREGUE"] {
+    border-color: var(--risco);
+    background: transparent;
+    color: var(--limalha);
+}
+
+.estado[data-status="CANCELADA"] {
+    border-color: var(--risco-sirene);
+    background: var(--tinta-sirene);
+    color: var(--sirene);
+}
+
+.estado[data-status="CANCELADA"]::before {
+    background: var(--sirene);
+}
+
+.estado--ativo {
+    border-color: var(--liberado);
+    background: var(--tinta-liberado);
+    color: var(--liberado-escuro);
+}
+
+.estado--ativo::before {
+    background: var(--liberado);
+}
+
+.estado--inativo {
+    border-color: var(--risco);
+    background: transparent;
+    color: var(--limalha);
+}
+
+/* ----------------------------------------------------- fita de carga da oficina */
+
+/* Uma barra só, dividida em proporção ao que está em cada estado.
+   A proporção é a informação: dá para ver de longe se a oficina está
+   travada em peça ou girando. */
+.fita {
+    display: flex;
+    gap: 2px;
+    margin-bottom: .5rem;
+    border: 1px solid var(--grafite);
+    background: var(--grafite);
+    border-radius: 3px;
+    overflow: hidden;
+    animation: fita-enche .5s cubic-bezier(.2, .7, .3, 1) both;
+}
+
+@keyframes fita-enche {
+    from {
+        clip-path: inset(0 100% 0 0);
+    }
+    to {
+        clip-path: inset(0 0 0 0);
+    }
+}
+
+.fita__faixa {
+    flex-basis: 0;
+    min-width: 6.5rem;
+    padding: .6rem .75rem;
+    background: var(--chapa);
+    color: var(--grafite);
+    overflow: hidden;
+}
+
+.fita__faixa[data-status="EM_EXECUCAO"] {
+    background: var(--bancada);
+    color: #fff;
+}
+
+.fita__faixa[data-status="AGUARDANDO_PECA"] {
+    background-color: var(--chapa-2);
+    background-image: var(--hachura);
+}
+
+.fita__faixa[data-status="FINALIZADA"] {
+    background: var(--liberado);
+    color: #fff;
+}
+
+.fita__quantidade {
+    display: block;
+    font-family: var(--mono);
+    font-variation-settings: "wdth" 87.5;
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.fita__rotulo {
+    display: block;
+    font-size: .625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    margin-top: .3rem;
+    opacity: .85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fita__nota {
+    font-size: .8125rem;
+    color: var(--limalha);
+    margin: 0 0 1.6rem;
+}
+
+/* ------------------------------------------------------------------- painéis */
+
+.painel {
+    background: var(--chapa);
+    border: 1px solid var(--risco);
+    border-radius: 3px;
+}
+
+.painel__cabeca {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    padding: .9rem 1.1rem;
+    border-bottom: 1px solid var(--risco);
+    background: var(--chapa-2);
+}
+
+.painel__corpo {
+    padding: 1.1rem;
+}
+
+.painel__corpo--largo {
+    padding: 1.6rem;
+}
+
+/* Estado vazio: o painel explica o que fazer e oferece o próximo passo */
+.nada-aqui {
+    display: grid;
+    justify-items: start;
+    gap: .6rem;
+}
+
+/* -------------------------------------------------------------------- tabela */
+
+.tabela {
+    width: 100%;
+    margin: 0;
+    border-collapse: collapse;
+}
+
+.tabela > thead > tr > th {
+    padding: .7rem .9rem;
+    background: var(--chapa-2);
+    border-bottom: 1px solid var(--risco);
+    text-align: left;
+    font-size: .6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--limalha);
+    white-space: nowrap;
+}
+
+.tabela > tbody > tr > td {
+    padding: .75rem .9rem;
+    border-bottom: 1px solid var(--risco-claro);
+    vertical-align: middle;
+    background: transparent;
+}
+
+.tabela > tbody > tr:last-child > td {
+    border-bottom: 0;
+}
+
+/* Só onde a linha realmente abre alguma coisa. Realce sem link é promessa
+   falsa: o mouse muda e nada acontece. */
+.tabela--clicavel > tbody > tr:hover {
+    background: var(--chapa-2);
+}
+
+.tabela > thead > tr > th.num,
+.tabela .num {
+    text-align: right;
+}
+
+/* Tabela larga em tela estreita rola dentro do próprio painel. Sem isto ela
+   empurra a página, o rail e o cabeçalho saem da tela e o dado da direita
+   (justamente o total) fica inalcançável no celular. */
+.painel--rolagem {
+    overflow-x: auto;
+}
+
+.painel--rolagem .tabela {
+    min-width: 44rem;
+}
+
+/* Largura das colunas do quadro: sem isto a coluna do veículo é espremida
+   pelo relato e "Volkswagen Gol 1.6 MSI" quebra em quatro linhas. */
+.col--veiculo {
+    width: 17rem;
+}
+
+.col--abertura {
+    width: 11rem;
+}
+
+.col--total {
+    width: 9rem;
+}
+
+.col--quantia {
+    width: 7.5rem;
+}
+
+.col--medida {
+    width: 6rem;
+}
+
+.tabela__acoes {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.tabela > tbody > tr > td.tabela__nada {
+    padding: 2.5rem .9rem;
+    text-align: center;
+    color: var(--limalha);
+}
+
+/* Grupo de status: cada tbody é um estado, com trilho de cor na borda */
+.grupo > tr > td:first-child {
+    box-shadow: inset 3px 0 0 var(--limalha);
+}
+
+.grupo[data-status="EM_EXECUCAO"] > tr > td:first-child {
+    box-shadow: inset 3px 0 0 var(--bancada);
+}
+
+.grupo[data-status="FINALIZADA"] > tr > td:first-child {
+    box-shadow: inset 3px 0 0 var(--liberado);
+}
+
+.grupo[data-status="CANCELADA"] > tr > td:first-child {
+    box-shadow: inset 3px 0 0 var(--sirene);
+}
+
+.grupo[data-status="ENTREGUE"] > tr,
+.grupo[data-status="CANCELADA"] > tr {
+    color: var(--limalha);
+}
+
+.grupo > .grupo__titulo > td {
+    padding: 1.1rem .9rem .45rem;
+    border-bottom: 1px solid var(--grafite);
+    box-shadow: none;
+}
+
+.grupo__titulo span {
+    font-size: .6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--grafite);
+}
+
+.grupo__titulo b {
+    font-family: var(--mono);
+    font-variation-settings: "wdth" 87.5;
+    font-size: .6875rem;
+    color: var(--limalha);
+    margin-left: .5rem;
+}
+
+.grupo[data-status="AGUARDANDO_PECA"] > .grupo__titulo > td {
+    background-image: var(--hachura);
+}
+
+.grupo[data-status="AGUARDANDO_PECA"] > tr > td:first-child {
+    box-shadow: inset 3px 0 0 var(--grafite);
+}
+
+.ordem-numero {
+    display: block;
+    margin-top: .2rem;
+    font-family: var(--mono);
+    font-variation-settings: "wdth" 87.5;
+    font-size: .6875rem;
+    color: var(--limalha);
+    text-decoration: none;
+}
+
+.ordem-numero:hover {
+    color: var(--placa-azul);
+    text-decoration: underline;
+}
+
+/* Dentro de uma célula ou de uma ficha: a chamada é o que se lê primeiro
+   (o veículo, o nome do cliente) e o apoio é o dado que confirma qual é. */
+.chamada {
+    display: block;
+    font-size: .8125rem;
+    font-weight: 500;
+}
+
+a.chamada {
+    color: var(--grafite);
+    text-decoration: none;
+}
+
+a.chamada:hover,
+a.chamada:focus-visible {
+    color: var(--placa-azul);
+    text-decoration: underline;
+}
+
+.apoio {
+    display: block;
+    font-size: .75rem;
+    color: var(--limalha);
+}
+
+/* -------------------------------------------------- trilha da ordem de serviço */
+
+/* Desenha a máquina de estados real. Aguardando peça não é uma parada:
+   é a execução travada, então aparece como hachura na parada de execução.
+   Cancelamento não é parada nenhuma — é saída da linha. */
+.trilha {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.trilha__parada {
+    padding-top: .5rem;
+    border-top: 4px solid var(--risco);
+}
+
+.trilha__parada[data-etapa="CONCLUIDA"] {
+    border-top-color: var(--grafite);
+}
+
+.trilha__parada[data-etapa="ATUAL"] {
+    border-top-color: var(--bancada);
+}
+
+.trilha__parada[data-etapa="TRAVADA"] {
+    border-top-color: var(--grafite);
+    background-image: var(--hachura);
+    background-repeat: no-repeat;
+    background-size: 100% 1.5rem;
+}
+
+.trilha__rotulo {
+    display: block;
+    font-size: .6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .09em;
+    color: var(--limalha);
+}
+
+.trilha__parada[data-etapa="CONCLUIDA"] .trilha__rotulo,
+.trilha__parada[data-etapa="ATUAL"] .trilha__rotulo,
+.trilha__parada[data-etapa="TRAVADA"] .trilha__rotulo {
+    color: var(--grafite);
+}
+
+.trilha__nota {
+    display: block;
+    font-size: .6875rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--bancada-escura);
+    margin-top: .15rem;
+}
+
+.saida-de-linha {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .9rem 1.1rem;
+    border: 1px solid var(--risco-sirene);
+    border-left: 4px solid var(--sirene);
+    border-radius: 3px;
+    background: var(--tinta-sirene);
+    color: var(--sirene);
+    font-weight: 600;
+    font-size: .875rem;
+}
+
+/* ------------------------------------------------------------------ controles */
+
+.botao {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    padding: .5rem 1rem;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    font: 600 .875rem/1.25 var(--sans);
+    text-align: center;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color .12s ease, border-color .12s ease, color .12s ease;
+}
+
+/* Ação principal da tela: laranja de bancada, uma por tela */
+.botao--acao {
+    background: var(--bancada);
+    border-color: var(--bancada);
+    color: #fff;
+}
+
+.botao--acao:hover {
+    background: var(--bancada-escura);
+    border-color: var(--bancada-escura);
+    color: #fff;
+}
+
+.botao--acao:active {
+    background: var(--bancada-cravada);
+    border-color: var(--bancada-cravada);
+}
+
+/* Ação secundária: chapa com risco, some no fundo até ser precisa */
+.botao--chapa {
+    background: var(--chapa);
+    border-color: var(--risco);
+    color: var(--grafite);
+}
+
+.botao--chapa:hover {
+    background: var(--chapa-2);
+    border-color: var(--grafite);
+    color: var(--grafite);
+}
+
+.botao--chapa:active {
+    background: var(--grafite);
+    border-color: var(--grafite);
+    color: #fff;
+}
+
+/* Ação que desfaz ou cancela: pede confirmação com a cor, não com um modal */
+.botao--risco {
+    background: var(--chapa);
+    border-color: var(--risco-sirene);
+    color: var(--sirene);
+}
+
+.botao--risco:hover {
+    background: var(--sirene);
+    border-color: var(--sirene);
+    color: #fff;
+}
+
+.botao--risco:active {
+    background: var(--sirene-escura);
+    border-color: var(--sirene-escura);
+    color: #fff;
+}
+
+.botao--pequeno {
+    padding: .35rem .7rem;
+    font-size: .8125rem;
+}
+
+.botao--cheio {
+    width: 100%;
+}
+
+.botao:disabled {
+    background: var(--chapa-2);
+    border-color: var(--risco);
+    color: var(--limalha);
+    cursor: not-allowed;
+}
+
+/* Formulário: uma malha de 12 colunas só para os campos. Sem modificador o
+   campo ocupa a linha inteira, que é o certo em coluna estreita. */
+.campos {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.campo {
+    grid-column: span 12;
+    min-width: 0;
+}
+
+.campos__pe {
+    grid-column: span 12;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: .5rem;
+    margin-top: .25rem;
+}
+
+.rotulo {
+    display: block;
+    font-size: .75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--limalha);
+    margin-bottom: .3rem;
+}
+
+.entrada {
+    display: block;
+    width: 100%;
+    padding: .55rem .7rem;
+    border: 1px solid var(--risco);
+    border-radius: 3px;
+    background: var(--chapa);
+    color: var(--grafite);
+    font: 400 .9375rem/1.4 var(--sans);
+}
+
+.entrada:focus {
+    outline: none;
+    border-color: var(--grafite);
+    box-shadow: 0 0 0 3px rgba(216, 81, 28, .16);
+}
+
+.entrada::placeholder {
+    color: var(--risco);
+}
+
+select.entrada {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5l5-5' fill='none' stroke='%238a9199' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right .7rem center;
+    background-size: .7rem;
+    padding-right: 2.1rem;
+}
+
+textarea.entrada {
+    resize: vertical;
+}
+
+/* Placa se digita como se lê na chapa: caixa alta e espaçada */
+.entrada--placa {
+    font-family: var(--mono);
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.entrada--recusada {
+    border-color: var(--sirene);
+}
+
+.entrada--recusada:focus {
+    border-color: var(--sirene);
+    box-shadow: 0 0 0 3px rgba(166, 43, 31, .16);
+}
+
+/* Recusa do campo. Vem vazia do Thymeleaf quando não há erro — sem :empty a
+   malha ganharia um vão fantasma embaixo de cada campo. */
+.recusa {
+    display: block;
+    font-size: .8125rem;
+    font-weight: 500;
+    color: var(--sirene);
+    margin-top: .3rem;
+}
+
+.recusa:empty {
+    display: none;
+}
+
+/* ------------------------------------------------------------------- recados */
+
+.recado {
+    display: flex;
+    gap: .7rem;
+    padding: .8rem 1rem;
+    border: 1px solid var(--risco);
+    border-left: 4px solid var(--limalha);
+    border-radius: 3px;
+    background: var(--chapa);
+    font-size: .875rem;
+    font-weight: 500;
+    margin-bottom: 1.25rem;
+}
+
+.recado--feito {
+    border-left-color: var(--liberado);
+    border-color: var(--risco-liberado);
+    background: var(--tinta-liberado);
+    color: var(--liberado-escuro);
+}
+
+.recado--falha {
+    border-left-color: var(--sirene);
+    border-color: var(--risco-sirene);
+    background: var(--tinta-sirene);
+    color: var(--sirene);
+}
+
+/* -------------------------------------------------------------- barra de ações */
+
+/* Bandeja de ferramentas no pé do painel: só as ações que o estado permite */
+.acoes {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+    padding: .85rem 1.1rem;
+    background: var(--chapa-2);
+    border-top: 1px solid var(--risco);
+}
+
+.acoes__rotulo {
+    font-size: .6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--limalha);
+    margin-right: .35rem;
+}
+
+.tipo-item {
+    font-size: .625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--grafite);
+    white-space: nowrap;
+}
+
+.tipo-item[data-tipo="SERVICO"] {
+    color: var(--placa-azul);
+}
+
+/* ---------------------------------------------------------------- totais da OS */
+
+.totais {
+    margin: 0;
+}
+
+.totais__linha {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .5rem 0;
+    border-bottom: 1px solid var(--risco-claro);
+}
+
+.totais__linha:last-child {
+    border-bottom: 0;
+    border-top: 2px solid var(--grafite);
+    margin-top: .35rem;
+    padding-top: .7rem;
+}
+
+.totais__rotulo {
+    font-size: .75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--limalha);
+}
+
+.totais__linha:last-child .totais__rotulo {
+    color: var(--grafite);
+}
+
+.totais__valor {
+    font-family: var(--mono);
+    font-variation-settings: "wdth" 87.5;
+    font-variant-numeric: tabular-nums;
+    font-size: .875rem;
+    font-weight: 500;
+}
+
+.totais__linha:last-child .totais__valor {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+/* --------------------------------------------------------- ficha do veículo */
+
+.ficha-veiculo {
+    display: grid;
+    justify-items: start;
+    gap: .1rem;
+}
+
+.ficha-veiculo .placa {
+    margin-bottom: .85rem;
+}
+
+/* ----------------------------------------------------------------- portaria */
+
+.portaria {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 2rem 1.25rem;
+    background: var(--grafite);
+    background-image: radial-gradient(circle at 20% 0%, #262b31 0, var(--grafite) 55%);
+}
+
+.portaria__cartao {
+    width: 100%;
+    max-width: 24rem;
+}
+
+.portaria__marca {
+    margin-bottom: 1.5rem;
+}
+
+.portaria__folha {
+    background: var(--chapa);
+    border-radius: 3px;
+    padding: 1.6rem;
+    border-top: 4px solid var(--bancada);
+}
+
+/* Espaço entre a abertura e o que vem depois — recado de erro ou o formulário */
+.portaria__abertura {
+    margin-bottom: 1.35rem;
+}
+
+.portaria__rodape {
+    margin-top: 1.25rem;
+    font-size: .75rem;
+    color: rgba(255, 255, 255, .4);
+    text-align: center;
+}
+
+/* ----------------------------------------------------------- módulo em construção */
+
+.obra {
+    max-width: 40rem;
+}
+
+.obra__faixa {
+    height: 1.5rem;
+    border: 1px solid var(--grafite);
+    border-radius: 3px;
+    background-color: var(--chapa-2);
+    background-image: var(--hachura);
+    margin-bottom: 1.6rem;
+}
+
+/* A saída do módulo em construção: único botão da tela, sempre solto do texto
+   que vem antes dele, seja ele qual for. */
+.obra .botao {
+    margin-top: 1.25rem;
+}
+
+/* ------------------------------------------------------------- aviso de erro */
+
+/* Fim de linha: o navegador não mostra texto cru nem página branca do
+   servidor. O código HTTP aparece porque é o que o suporte vai pedir. */
+.aviso {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 2rem 1.25rem;
+}
+
+.aviso__cartao {
+    width: 100%;
+    max-width: 33rem;
+    background: var(--chapa);
+    border: 1px solid var(--risco);
+    border-top: 4px solid var(--sirene);
+    border-radius: 3px;
+    padding: 1.75rem;
+}
+
+.aviso__codigo {
+    font-family: var(--mono);
+    font-variation-settings: "wdth" 87.5;
+    font-size: 2.75rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--risco);
+    margin-bottom: .75rem;
+}
+
+.aviso__detalhe {
+    margin-top: 1.1rem;
+    padding: .8rem 1rem;
+    border-left: 3px solid var(--risco);
+    background: var(--chapa-2);
+    font-size: .875rem;
+}
+
+.aviso__saida {
+    margin-top: 1.5rem;
+}
+
+/* --------------------------------------------------------------------- responsivo */
+
+@media (max-width: 61.99em) {
+    .oficina {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .rail {
+        position: static;
+        height: auto;
+        flex-direction: row;
+        align-items: center;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: .3rem;
+        padding: .75rem 1rem;
+    }
+
+    .rail__marca {
+        margin: 0 .75rem 0 0;
+        flex: none;
+    }
+
+    .rail__grupo,
+    .rail__marca .marca__oficina {
+        display: none;
+    }
+
+    .rail__link {
+        box-shadow: inset 0 -2px 0 transparent;
+    }
+
+    .rail__link[aria-current="page"] {
+        box-shadow: inset 0 -2px 0 var(--bancada);
+    }
+
+    .rail__saida {
+        margin: 0 0 0 auto;
+        padding: 0;
+    }
+
+    .rail__sair {
+        width: auto;
+        border-top: 0;
+        border-left: 1px solid rgba(255, 255, 255, .12);
+        padding: .3rem 0 .3rem .9rem;
+    }
+
+    .chao {
+        padding: 1.4rem 1.1rem 3rem;
+    }
+
+    /* Uma coluna só: o cadastro vem primeiro, a lista embaixo */
+    .dupla,
+    .dupla--conteudo {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .trilha {
+        grid-template-columns: repeat(2, 1fr);
+        gap: .75rem 3px;
+    }
+}
+
+/* Campos em meia largura só quando há largura para isso */
+@media (min-width: 48em) {
+    .campo--meio {
+        grid-column: span 6;
+    }
+
+    .campo--terco {
+        grid-column: span 4;
+    }
+
+    .campo--tipo {
+        grid-column: span 3;
+    }
+
+    .campo--descricao {
+        grid-column: span 9;
+    }
+
+    .campos__pe--terco {
+        grid-column: span 4;
+    }
+}
+
+@media (max-width: 36em) {
+    /* Empilhada, a proporção passa a ser altura. flex-basis 0 colapsaria cada
+       faixa a uma tira sem altura, cortando o número no meio. */
+    .fita {
+        flex-direction: column;
+    }
+
+    .fita__faixa {
+        min-width: 0;
+        flex-basis: auto;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important;
+    }
+}
+
+@media print {
+    .rail,
+    .acoes,
+    .botao,
+    .voltar {
+        display: none !important;
+    }
+
+    body,
+    .painel {
+        background: #fff;
+    }
+
+    .oficina {
+        display: block;
+    }
+
+    .chao {
+        padding: 0;
+    }
+}

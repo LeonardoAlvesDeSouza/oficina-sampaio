@@ -1,111 +1,130 @@
 <!doctype html>
 <html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Veículos · Oficina Sampaio</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
-          rel="stylesheet"
-          integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
-          crossorigin="anonymous">
-</head>
-<body class="bg-body-tertiary">
-<nav th:replace="~{fragments/navegacao :: principal}"></nav>
+<head th:replace="~{fragments/layout :: cabeca('Veículos')}"></head>
+<body>
+<div class="oficina">
+    <nav th:replace="~{fragments/navegacao :: principal('clientes')}"></nav>
 
-<main class="container py-4">
-    <div class="d-flex align-items-center justify-content-between mb-4">
-        <div>
-            <a th:href="@{/clientes}" class="link-secondary">← Voltar para clientes</a>
-            <h1 class="h3 mt-2 mb-0" th:text="|Veículos de ${cliente.nome}|">Veículos</h1>
-        </div>
-        <span class="text-body-secondary" th:text="|${veiculos.size()} cadastrado(s)|"></span>
-    </div>
+    <main class="chao">
+        <a th:href="@{/clientes}" class="voltar">← Voltar para clientes</a>
 
-    <div class="row g-4">
-        <section class="col-lg-4">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <h2 class="h5 mb-3">Novo veículo</h2>
+        <header class="cabecalho-pagina">
+            <div>
+                <span class="etiqueta">Veículos de</span>
+                <h1 class="estampa estampa--pagina" th:text="${cliente.nome}">Cliente</h1>
+            </div>
+            <span class="dado"
+                  th:text="${veiculos.size() == 1 ? '1 veículo' : veiculos.size() + ' veículos'}">0 veículos</span>
+        </header>
+
+        <div class="dupla">
+            <section class="painel">
+                <div class="painel__cabeca">
+                    <h2 class="estampa estampa--painel">Novo veículo</h2>
+                </div>
+                <div class="painel__corpo">
                     <form th:action="@{/clientes/{id}/veiculos(id=${cliente.id})}"
                           th:object="${form}" method="post" novalidate>
-                        <div class="mb-3">
-                            <label for="placa" class="form-label">Placa</label>
-                            <input id="placa" class="form-control text-uppercase" th:field="*{placa}"
-                                   th:classappend="${#fields.hasErrors('placa')} ? 'is-invalid'">
-                            <div class="invalid-feedback" th:errors="*{placa}"></div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="marca" class="form-label">Marca</label>
-                            <input id="marca" class="form-control" th:field="*{marca}"
-                                   th:classappend="${#fields.hasErrors('marca')} ? 'is-invalid'">
-                            <div class="invalid-feedback" th:errors="*{marca}"></div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="modelo" class="form-label">Modelo</label>
-                            <input id="modelo" class="form-control" th:field="*{modelo}"
-                                   th:classappend="${#fields.hasErrors('modelo')} ? 'is-invalid'">
-                            <div class="invalid-feedback" th:errors="*{modelo}"></div>
-                        </div>
-                        <div class="row g-3 mb-3">
-                            <div class="col-6">
-                                <label for="ano" class="form-label">Ano</label>
-                                <input id="ano" type="number" class="form-control" th:field="*{ano}">
+                        <div class="campos">
+                            <div class="campo">
+                                <label for="placa" class="rotulo">Placa</label>
+                                <input id="placa" class="entrada entrada--placa" th:field="*{placa}"
+                                       placeholder="ABC1D23" maxlength="8"
+                                       th:classappend="${#fields.hasErrors('placa')} ? 'entrada--recusada'">
+                                <span class="recusa" th:errors="*{placa}"></span>
                             </div>
-                            <div class="col-6">
-                                <label for="cor" class="form-label">Cor</label>
-                                <input id="cor" class="form-control" th:field="*{cor}">
+                            <div class="campo">
+                                <label for="marca" class="rotulo">Marca</label>
+                                <input id="marca" class="entrada" th:field="*{marca}"
+                                       th:classappend="${#fields.hasErrors('marca')} ? 'entrada--recusada'">
+                                <span class="recusa" th:errors="*{marca}"></span>
+                            </div>
+                            <div class="campo">
+                                <label for="modelo" class="rotulo">Modelo</label>
+                                <input id="modelo" class="entrada" th:field="*{modelo}"
+                                       th:classappend="${#fields.hasErrors('modelo')} ? 'entrada--recusada'">
+                                <span class="recusa" th:errors="*{modelo}"></span>
+                            </div>
+                            <div class="campo campo--meio">
+                                <label for="ano" class="rotulo">Ano</label>
+                                <input id="ano" type="number" class="entrada" th:field="*{ano}">
+                            </div>
+                            <div class="campo campo--meio">
+                                <label for="cor" class="rotulo">Cor</label>
+                                <input id="cor" class="entrada" th:field="*{cor}">
+                            </div>
+                            <div class="campo">
+                                <label for="quilometragem" class="rotulo">Quilometragem</label>
+                                <input id="quilometragem" type="number" min="0" class="entrada"
+                                       th:field="*{quilometragem}"
+                                       th:classappend="${#fields.hasErrors('quilometragem')} ? 'entrada--recusada'">
+                                <span class="recusa" th:errors="*{quilometragem}"></span>
+                            </div>
+                            <div class="campos__pe">
+                                <button type="submit" class="botao botao--acao botao--cheio">
+                                    Cadastrar veículo
+                                </button>
                             </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="quilometragem" class="form-label">Quilometragem</label>
-                            <input id="quilometragem" type="number" min="0" class="form-control"
-                                   th:field="*{quilometragem}"
-                                   th:classappend="${#fields.hasErrors('quilometragem')} ? 'is-invalid'">
-                            <div class="invalid-feedback" th:errors="*{quilometragem}"></div>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">Cadastrar veículo</button>
                     </form>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <section class="col-lg-8">
-            <div class="card shadow-sm">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
+            <section>
+                <div class="painel painel--rolagem" th:if="${!veiculos.isEmpty()}">
+                    <table class="tabela">
+                        <colgroup>
+                            <col class="col--medida">
+                            <col>
+                            <col class="col--abertura">
+                            <col class="col--total">
+                        </colgroup>
                         <thead>
                         <tr>
-                            <th>Placa</th>
-                            <th>Veículo</th>
-                            <th>Ano</th>
-                            <th>Cor</th>
-                            <th class="text-end">Quilometragem</th>
-                            <th class="text-end">Ações</th>
+                            <th scope="col">Placa</th>
+                            <th scope="col">Veículo</th>
+                            <th scope="col" class="num">Quilometragem</th>
+                            <th scope="col" class="tabela__acoes">Ordem</th>
                         </tr>
                         </thead>
                         <tbody>
-                        <tr th:if="${veiculos.isEmpty()}">
-                            <td colspan="6" class="text-center text-body-secondary py-4">
-                                Nenhum veículo cadastrado para este cliente.
-                            </td>
-                        </tr>
                         <tr th:each="veiculo : ${veiculos}">
-                            <td><strong th:text="${veiculo.placa}"></strong></td>
-                            <td th:text="|${veiculo.marca} ${veiculo.modelo}|"></td>
-                            <td th:text="${veiculo.ano ?: '—'}"></td>
-                            <td th:text="${veiculo.cor ?: '—'}"></td>
-                            <td class="text-end" th:text="${veiculo.quilometragem ?: '—'}"></td>
-                            <td class="text-end">
-                                <a class="btn btn-sm btn-outline-primary"
-                                   th:href="@{/ordens-servico/nova(veiculoId=${veiculo.id})}">Abrir OS</a>
+                            <td>
+                                <span th:replace="~{fragments/componentes :: placa(${veiculo.placa})}"></span>
+                            </td>
+                            <td>
+                                <span class="chamada"
+                                      th:text="|${veiculo.marca} ${veiculo.modelo}|">Marca Modelo</span>
+                                <span class="apoio">
+                                    <span th:text="${veiculo.ano} ?: '—'">0000</span>
+                                    · <span th:text="${veiculo.cor} ?: '—'">cor</span>
+                                </span>
+                            </td>
+                            <td class="num">
+                                <span class="dado" th:if="${veiculo.quilometragem != null}"
+                                      th:text="|${#numbers.formatInteger(veiculo.quilometragem, 1, 'POINT')} km|">0 km</span>
+                                <span class="vazio" th:unless="${veiculo.quilometragem != null}">—</span>
+                            </td>
+                            <td class="tabela__acoes">
+                                <a class="botao botao--chapa botao--pequeno"
+                                   th:href="@{/ordens-servico/nova(veiculoId=${veiculo.id})}">Abrir ordem</a>
                             </td>
                         </tr>
                         </tbody>
                     </table>
                 </div>
-            </div>
-        </section>
-    </div>
-</main>
+
+                <div class="painel" th:if="${veiculos.isEmpty()}">
+                    <div class="painel__corpo painel__corpo--largo nada-aqui">
+                        <h2 class="estampa estampa--painel">Nenhum veículo neste cliente</h2>
+                        <p class="legenda">
+                            Cadastre a placa ao lado para poder abrir uma ordem de serviço.
+                        </p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+</div>
 </body>
 </html>

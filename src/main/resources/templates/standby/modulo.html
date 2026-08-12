@@ -1,36 +1,34 @@
 <!doctype html>
 <html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title th:text="|${tituloModulo} · Oficina Sampaio|">Módulo · Oficina Sampaio</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
-          rel="stylesheet"
-          integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
-          crossorigin="anonymous">
-</head>
-<body class="bg-body-tertiary">
-<nav th:replace="~{fragments/navegacao :: principal}"></nav>
+<head th:replace="~{fragments/layout :: cabeca(${tituloModulo})}"></head>
+<body>
+<div class="oficina">
+    <nav th:replace="~{fragments/navegacao :: principal(${secao})}"></nav>
 
-<main class="container py-5">
-    <div class="row justify-content-center">
-        <section class="col-lg-8 col-xl-7">
-            <div class="card border-0 shadow-sm text-center">
-                <div class="card-body p-5">
-                    <span class="badge rounded-pill text-bg-warning mb-3">Em breve</span>
-                    <h1 class="display-6 fw-semibold" th:text="${tituloModulo}">Módulo</h1>
-                    <p class="lead text-body-secondary mb-4" th:text="${descricaoModulo}"></p>
+    <main class="chao">
+        <header class="cabecalho-pagina">
+            <div>
+                <span class="etiqueta">Área reservada</span>
+                <h1 class="estampa estampa--pagina" th:text="${tituloModulo}">Módulo</h1>
+            </div>
+        </header>
 
-                    <div class="alert alert-secondary mb-4" role="status">
-                        <strong>Módulo em construção</strong>
-                        <div class="small mt-1">Esta área já está reservada e será liberada em uma próxima etapa.</div>
-                    </div>
+        <section class="obra">
+            <!-- Mesma hachura de "aguardando peça": travado, não prossiga -->
+            <div class="obra__faixa" aria-hidden="true"></div>
 
-                    <a th:href="@{/ordens-servico}" class="btn btn-primary">Voltar para ordens de serviço</a>
+            <div class="painel">
+                <div class="painel__corpo painel__corpo--largo">
+                    <h2 class="estampa estampa--painel">Módulo em construção</h2>
+                    <p class="legenda" th:text="${descricaoModulo}">Descrição</p>
+
+                    <a th:href="@{/ordens-servico}" class="botao botao--acao">
+                        Voltar para o quadro de ordens
+                    </a>
                 </div>
             </div>
         </section>
-    </div>
-</main>
+    </main>
+</div>
 </body>
 </html>
