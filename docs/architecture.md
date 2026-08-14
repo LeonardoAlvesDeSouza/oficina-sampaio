@@ -133,6 +133,16 @@ lançados enquanto a ordem não está finalizada, ou seja, em `ABERTA`,
 no total antes do fechamento. `FINALIZADA` encerra o valor da ordem, e
 `ENTREGUE` e `CANCELADA` são estados terminais.
 
+A retirada de um item vale na mesma janela do lançamento: o que foi cadastrado
+por engano pode ser removido enquanto a ordem aceita alteração de itens, e
+deixa de existir em `FINALIZADA`, `ENTREGUE` e `CANCELADA`, quando o valor da
+ordem já está fechado. Uma ordem que já saiu de `ABERTA` não pode ficar sem
+nenhum item: esvaziá-la produziria um estado que a própria transição de início
+de execução não permitiria alcançar. Para trocar o único item de uma ordem em
+andamento, lança-se o correto antes de remover o errado. Na tela, a remoção
+pede confirmação numa caixa do próprio sistema visual; a regra, porém, vive no
+domínio — a confirmação é conveniência, não controle.
+
 O cancelamento é restrito ao perfil `ADMIN`; as demais transições estão
 disponíveis para qualquer usuário autenticado. A restrição é aplicada no
 servidor e também esconde o botão na tela de detalhe.
@@ -261,7 +271,7 @@ Implementado nas quatro primeiras fatias verticais:
 - totais monetários derivados no domínio e consulta detalhada pela interface web;
 - persistência das ordens e seus itens pela migration Flyway `V3`;
 - ciclo operacional completo da ordem, com ações válidas expostas pela aplicação;
-- itens lançáveis até a finalização e cancelamento restrito ao administrador;
+- itens lançáveis e removíveis até a finalização, e cancelamento restrito ao administrador;
 - persistência otimista das mudanças de estado e controles correspondentes na interface web;
 - navegação e telas de stand-by para Pagamentos, Financeiro e Relatórios, servidas
   temporariamente por `shared.presentation` até que cada módulo assuma sua rota;

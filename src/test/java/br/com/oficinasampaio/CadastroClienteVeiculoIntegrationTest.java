@@ -345,6 +345,100 @@ class CadastroClienteVeiculoIntegrationTest {
     }
 
     @Test
+    void removeItemPelaInterfaceWebEnquantoAOrdemAceitaAlteracao() throws Exception {
+        var cliente = cadastrarCliente.executar(new CadastrarClienteCommand(
+                "Oficina Retirada", "398.286.760-27", null, null
+        ));
+        var veiculo = cadastrarVeiculo.executar(new CadastrarVeiculoCommand(
+                cliente.id(), "VWX-4Y56", "Renault", "Sandero",
+                2018, "Azul", 71_000L
+        ));
+        var ordem = abrirOrdemServico.executar(new AbrirOrdemServicoCommand(
+                veiculo.id(), "Revisão da suspensão"
+        ));
+        adicionarItemOrdemServico.executar(new AdicionarItemOrdemServicoCommand(
+                ordem.id(), TipoItemOrdemServicoView.SERVICO, "Alinhamento",
+                BigDecimal.ONE, new BigDecimal("120.00")
+        ));
+        var comPeca = adicionarItemOrdemServico.executar(new AdicionarItemOrdemServicoCommand(
+                ordem.id(), TipoItemOrdemServicoView.PECA, "Amortecedor lançado por engano",
+                BigDecimal.ONE, new BigDecimal("350.00")
+        ));
+        entityManager.flush();
+        var pecaId = comPeca.itens().getLast().id();
+        assertNotNull(pecaId);
+
+        mockMvc.perform(get("/ordens-servico/" + ordem.id())
+                        .with(user("funcionario").roles("FUNCIONARIO")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Remover")));
+
+        mockMvc.perform(post("/ordens-servico/" + ordem.id() + "/itens/" + pecaId + "/remover")
+                        .with(user("funcionario").roles("FUNCIONARIO"))
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/ordens-servico/" + ordem.id()))
+                .andExpect(flash().attribute("sucesso", "Item removido da ordem"));
+
+        entityManager.flush();
+        entityManager.clear();
+        var detalhe = buscarOrdemServico.executar(ordem.id());
+        assertAll(
+                () -> assertEquals(1, detalhe.itens().size()),
+                () -> assertEquals("Alinhamento", detalhe.itens().getFirst().descricao()),
+                () -> assertEquals(new BigDecimal("0.00"), detalhe.totalPecas()),
+                () -> assertEquals(new BigDecimal("120.00"), detalhe.total())
+        );
+    }
+
+    @Test
+    void recusaRemocaoDeItemDeOrdemFinalizada() throws Exception {
+        var cliente = cadastrarCliente.executar(new CadastrarClienteCommand(
+                "Oficina Valor Fechado", "191.181.130-05", null, null
+        ));
+        var veiculo = cadastrarVeiculo.executar(new CadastrarVeiculoCommand(
+                cliente.id(), "YZA-7B89", "Hyundai", "HB20",
+                2021, "Preto", 25_000L
+        ));
+        var ordem = abrirOrdemServico.executar(new AbrirOrdemServicoCommand(
+                veiculo.id(), "Troca de correia"
+        ));
+        var comItens = adicionarItemOrdemServico.executar(new AdicionarItemOrdemServicoCommand(
+                ordem.id(), TipoItemOrdemServicoView.SERVICO, "Troca de correia",
+                BigDecimal.ONE, new BigDecimal("240.00")
+        ));
+        entityManager.flush();
+        var itemId = comItens.itens().getFirst().id();
+        alterarStatusOrdemServico.executar(new AlterarStatusOrdemServicoCommand(
+                ordem.id(), AcaoOrdemServicoView.INICIAR_EXECUCAO
+        ));
+        alterarStatusOrdemServico.executar(new AlterarStatusOrdemServicoCommand(
+                ordem.id(), AcaoOrdemServicoView.FINALIZAR
+        ));
+
+        mockMvc.perform(post("/ordens-servico/" + ordem.id() + "/itens/" + itemId + "/remover")
+                        .with(user("funcionario").roles("FUNCIONARIO"))
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/ordens-servico/" + ordem.id()))
+                .andExpect(flash().attribute(
+                        "erro",
+                        "Itens só podem ser alterados enquanto a ordem não está finalizada"
+                ));
+
+        entityManager.flush();
+        entityManager.clear();
+        assertEquals(1, buscarOrdemServico.executar(ordem.id()).itens().size());
+
+        mockMvc.perform(get("/ordens-servico/" + ordem.id())
+                        .with(user("funcionario").roles("FUNCIONARIO")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("Remover")
+                )));
+    }
+
+    @Test
     void exibePagamentosFinanceiroERelatoriosComoModulosEmConstrucao() throws Exception {
         var modulos = Map.of(
                 "/pagamentos", "Pagamentos",

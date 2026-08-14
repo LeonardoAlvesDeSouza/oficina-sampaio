@@ -1,5 +1,6 @@
 package br.com.oficinasampaio.ordemservico.domain;
 
+import br.com.oficinasampaio.shared.domain.RecursoNaoEncontradoException;
 import br.com.oficinasampaio.shared.domain.RegraNegocioException;
 import org.junit.jupiter.api.Test;
 
@@ -145,6 +146,114 @@ class OrdemServicoTest {
     }
 
     @Test
+    void removeItemLancadoPorEngano_eRecalculaOsTotais() {
+        var ordem = ordemComServico();
+        ordem.adicionarPeca("Amortecedor", new BigDecimal("2"), new BigDecimal("350.50"));
+        var pecaId = idDoItem(ordem, 1);
+
+        ordem.removerItem(pecaId);
+
+        assertAll(
+                () -> assertEquals(1, ordem.getItens().size()),
+                () -> assertEquals("Diagnóstico", ordem.getItens().getFirst().getDescricao()),
+                () -> assertEquals(new BigDecimal("90.00"), ordem.getTotalServicos()),
+                () -> assertEquals(new BigDecimal("0.00"), ordem.getTotalPecas()),
+                () -> assertEquals(new BigDecimal("90.00"), ordem.getTotal())
+        );
+    }
+
+    @Test
+    void removeUltimoItemEnquantoAOrdemEstaAberta() {
+        var ordem = ordemComServico();
+
+        ordem.removerItem(idDoItem(ordem, 0));
+
+        assertAll(
+                () -> assertEquals(0, ordem.getItens().size()),
+                () -> assertEquals(new BigDecimal("0.00"), ordem.getTotal())
+        );
+    }
+
+    @Test
+    void removeItemDaOrdemQueAguardaPeca() {
+        var ordem = ordemComServico();
+        ordem.adicionarPeca("Sensor de rotação", BigDecimal.ONE, new BigDecimal("210.00"));
+        ordem.iniciarExecucao();
+        ordem.aguardarPeca();
+
+        ordem.removerItem(idDoItem(ordem, 1));
+
+        assertEquals(1, ordem.getItens().size());
+        assertEquals(new BigDecimal("90.00"), ordem.getTotal());
+    }
+
+    @Test
+    void impedeEsvaziarOrdemJaEmAndamento() {
+        var ordem = ordemComServico();
+        ordem.iniciarExecucao();
+        var servicoId = idDoItem(ordem, 0);
+
+        var erro = assertThrows(RegraNegocioException.class, () -> ordem.removerItem(servicoId));
+
+        assertEquals("A ordem já em andamento precisa manter ao menos um item", erro.getMessage());
+        assertEquals(1, ordem.getItens().size());
+    }
+
+    @Test
+    void bloqueiaRemocaoDeItemAposFinalizar() {
+        var ordem = ordemComServico();
+        ordem.adicionarPeca("Filtro de óleo", BigDecimal.ONE, new BigDecimal("35.00"));
+        ordem.iniciarExecucao();
+        ordem.finalizar();
+        var pecaId = idDoItem(ordem, 1);
+
+        var erro = assertThrows(RegraNegocioException.class, () -> ordem.removerItem(pecaId));
+
+        assertEquals(ITENS_BLOQUEADOS, erro.getMessage());
+        assertEquals(2, ordem.getItens().size());
+    }
+
+    @Test
+    void bloqueiaRemocaoDeItemNaOrdemEntregue() {
+        var ordem = ordemComServico();
+        ordem.adicionarPeca("Filtro de óleo", BigDecimal.ONE, new BigDecimal("35.00"));
+        ordem.iniciarExecucao();
+        ordem.finalizar();
+        ordem.entregar();
+        var pecaId = idDoItem(ordem, 1);
+
+        var erro = assertThrows(RegraNegocioException.class, () -> ordem.removerItem(pecaId));
+
+        assertEquals(ITENS_BLOQUEADOS, erro.getMessage());
+        assertEquals(2, ordem.getItens().size());
+    }
+
+    @Test
+    void bloqueiaRemocaoDeItemNaOrdemCancelada() {
+        var ordem = ordemComServico();
+        ordem.cancelar();
+        var servicoId = idDoItem(ordem, 0);
+
+        var erro = assertThrows(RegraNegocioException.class, () -> ordem.removerItem(servicoId));
+
+        assertEquals(ITENS_BLOQUEADOS, erro.getMessage());
+        assertEquals(1, ordem.getItens().size());
+    }
+
+    @Test
+    void recusaRemocaoDeItemDeOutraOrdem() {
+        var ordem = ordemComServico();
+        var idDesconhecido = UUID.randomUUID();
+
+        var erro = assertThrows(RecursoNaoEncontradoException.class, () ->
+                ordem.removerItem(idDesconhecido)
+        );
+
+        assertEquals("Item não encontrado nesta ordem de serviço", erro.getMessage());
+        assertEquals(1, ordem.getItens().size());
+    }
+
+    @Test
     void impedeIniciarExecucaoSemItens() {
         var ordem = OrdemServico.abrir(
                 UUID.randomUUID(), UUID.randomUUID(), "Revisão",
@@ -200,5 +309,25 @@ class OrdemServicoTest {
         );
         ordem.adicionarServico("Diagnóstico", BigDecimal.ONE, new BigDecimal("90.00"));
         return ordem;
+    }
+
+    /**
+     * Fora do banco o item nasce sem id. Como a remoção é feita por
+     * identificador, o teste simula aqui a geração que o JPA faria ao gravar.
+     */
+    private static UUID idDoItem(OrdemServico ordem, int posicao) {
+        var item = ordem.getItens().get(posicao);
+        if (item.getId() != null) {
+            return item.getId();
+        }
+        var id = UUID.randomUUID();
+        try {
+            var campo = ItemOrdemServico.class.getDeclaredField("id");
+            campo.setAccessible(true);
+            campo.set(item, id);
+        } catch (NoSuchFieldException | IllegalAccessException erro) {
+            throw new IllegalStateException("Não foi possível atribuir o id do item", erro);
+        }
+        return id;
     }
 }

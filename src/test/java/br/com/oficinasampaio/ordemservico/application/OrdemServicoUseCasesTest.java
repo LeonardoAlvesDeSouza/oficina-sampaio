@@ -1,6 +1,7 @@
 package br.com.oficinasampaio.ordemservico.application;
 
 import br.com.oficinasampaio.cliente.application.ClienteQueries;
+import br.com.oficinasampaio.ordemservico.domain.ItemOrdemServico;
 import br.com.oficinasampaio.ordemservico.domain.OrdemServico;
 import br.com.oficinasampaio.ordemservico.domain.OrdemServicoRepository;
 import br.com.oficinasampaio.shared.domain.RecursoNaoEncontradoException;
@@ -75,6 +76,67 @@ class OrdemServicoUseCasesTest {
                 () -> assertEquals(new BigDecimal("120.00"), detalhe.totalServicos()),
                 () -> assertEquals(new BigDecimal("120.00"), detalhe.total())
         );
+    }
+
+    @Test
+    void removeItemDaOrdemAbertaEDevolveOsTotaisAtualizados() {
+        var repositorio = new OrdemServicoRepositoryEmMemoria();
+        var ordem = abrirOrdem(repositorio, "Revisão preventiva");
+        var adicionarItem = new AdicionarItemOrdemServico(repositorio);
+        adicionarItem.executar(new AdicionarItemOrdemServicoCommand(
+                ordem.id(), TipoItemOrdemServicoView.SERVICO,
+                "Alinhamento", BigDecimal.ONE, new BigDecimal("120.00")
+        ));
+        var comPeca = adicionarItem.executar(new AdicionarItemOrdemServicoCommand(
+                ordem.id(), TipoItemOrdemServicoView.PECA,
+                "Amortecedor", BigDecimal.ONE, new BigDecimal("350.00")
+        ));
+        var pecaId = comPeca.itens().getLast().id();
+
+        var semPeca = new RemoverItemOrdemServico(repositorio).executar(
+                new RemoverItemOrdemServicoCommand(ordem.id(), pecaId)
+        );
+
+        assertAll(
+                () -> assertEquals(1, semPeca.itens().size()),
+                () -> assertEquals("Alinhamento", semPeca.itens().getFirst().descricao()),
+                () -> assertEquals(new BigDecimal("0.00"), semPeca.totalPecas()),
+                () -> assertEquals(new BigDecimal("120.00"), semPeca.total())
+        );
+    }
+
+    @Test
+    void bloqueiaRemocaoDeItemAposFinalizar() {
+        var repositorio = new OrdemServicoRepositoryEmMemoria();
+        var ordem = abrirOrdem(repositorio, "Revisão");
+        var adicionarItem = new AdicionarItemOrdemServico(repositorio);
+        adicionarItem.executar(new AdicionarItemOrdemServicoCommand(
+                ordem.id(), TipoItemOrdemServicoView.SERVICO,
+                "Diagnóstico", BigDecimal.ONE, new BigDecimal("90.00")
+        ));
+        var comPeca = adicionarItem.executar(new AdicionarItemOrdemServicoCommand(
+                ordem.id(), TipoItemOrdemServicoView.PECA,
+                "Filtro de óleo", BigDecimal.ONE, new BigDecimal("35.00")
+        ));
+        var pecaId = comPeca.itens().getLast().id();
+        var alterarStatus = new AlterarStatusOrdemServico(repositorio);
+        alterarStatus.executar(new AlterarStatusOrdemServicoCommand(
+                ordem.id(), AcaoOrdemServicoView.INICIAR_EXECUCAO
+        ));
+        alterarStatus.executar(new AlterarStatusOrdemServicoCommand(
+                ordem.id(), AcaoOrdemServicoView.FINALIZAR
+        ));
+
+        var removerItem = new RemoverItemOrdemServico(repositorio);
+        var erro = assertThrows(RegraNegocioException.class, () ->
+                removerItem.executar(new RemoverItemOrdemServicoCommand(ordem.id(), pecaId))
+        );
+
+        assertEquals(
+                "Itens só podem ser alterados enquanto a ordem não está finalizada",
+                erro.getMessage()
+        );
+        assertEquals(2, new BuscarOrdemServico(repositorio).executar(ordem.id()).itens().size());
     }
 
     @Test
@@ -249,12 +311,14 @@ class OrdemServicoUseCasesTest {
     private static final class OrdemServicoRepositoryEmMemoria implements OrdemServicoRepository {
 
         private static final Field CAMPO_ID = campoId();
+        private static final Field CAMPO_ID_ITEM = campoIdItem();
 
         private final Map<UUID, OrdemServico> ordens = new LinkedHashMap<>();
 
         @Override
         public OrdemServico salvar(OrdemServico ordemServico) {
             var id = ordemServico.getId() != null ? ordemServico.getId() : gerarId(ordemServico);
+            identificarItens(ordemServico);
             ordens.put(id, ordemServico);
             return ordemServico;
         }
@@ -279,13 +343,37 @@ class OrdemServicoUseCasesTest {
             return id;
         }
 
+        /**
+         * O item também só ganha identificador ao ser gravado. Sem isso a
+         * remoção por id não teria como ser exercitada fora do banco.
+         */
+        private static void identificarItens(OrdemServico ordemServico) {
+            ordemServico.getItens().stream()
+                    .filter(item -> item.getId() == null)
+                    .forEach(item -> {
+                        try {
+                            CAMPO_ID_ITEM.set(item, UUID.randomUUID());
+                        } catch (IllegalAccessException erro) {
+                            throw new IllegalStateException("Não foi possível atribuir o id do item", erro);
+                        }
+                    });
+        }
+
         private static Field campoId() {
+            return campo(OrdemServico.class, "OrdemServico");
+        }
+
+        private static Field campoIdItem() {
+            return campo(ItemOrdemServico.class, "ItemOrdemServico");
+        }
+
+        private static Field campo(Class<?> tipo, String nome) {
             try {
-                var campo = OrdemServico.class.getDeclaredField("id");
+                var campo = tipo.getDeclaredField("id");
                 campo.setAccessible(true);
                 return campo;
             } catch (NoSuchFieldException erro) {
-                throw new IllegalStateException("Campo id não encontrado em OrdemServico", erro);
+                throw new IllegalStateException("Campo id não encontrado em " + nome, erro);
             }
         }
     }

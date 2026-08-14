@@ -79,6 +79,7 @@
                                 <col class="col--medida">
                                 <col class="col--quantia">
                                 <col class="col--quantia">
+                                <col class="col--retirada" th:if="${ordem.permiteAlterarItens}">
                             </colgroup>
                             <thead>
                             <tr>
@@ -86,11 +87,15 @@
                                 <th scope="col" class="num">Qtd.</th>
                                 <th scope="col" class="num">Unitário</th>
                                 <th scope="col" class="num">Total</th>
+                                <th scope="col" class="tabela__acoes"
+                                    th:if="${ordem.permiteAlterarItens}">
+                                    <span class="oculto-visual">Remover</span>
+                                </th>
                             </tr>
                             </thead>
                             <tbody>
                             <tr th:if="${ordem.itens.isEmpty()}">
-                                <td colspan="4" class="tabela__nada">
+                                <td th:colspan="${ordem.permiteAlterarItens} ? 5 : 4" class="tabela__nada">
                                     Nenhum item incluído. Some os serviços e as peças abaixo.
                                 </td>
                             </tr>
@@ -113,6 +118,18 @@
                                 <td class="num">
                                     <span class="dado dado--forte"
                                           th:text="|R$ ${#numbers.formatDecimal(item.total, 1, 'POINT', 2, 'COMMA')}|">R$ 0,00</span>
+                                </td>
+                                <!-- Retirada do item lançado por engano. Só existe
+                                     na mesma janela em que o item pôde ser incluído. -->
+                                <td class="tabela__acoes" th:if="${ordem.permiteAlterarItens}">
+                                    <form th:action="@{/ordens-servico/{id}/itens/{itemId}/remover(id=${ordem.id},itemId=${item.id})}"
+                                          method="post"
+                                          th:attr="data-confirmar=|${item.tipo.name() == 'SERVICO' ? 'o serviço' : 'a peça'} ${item.descricao}|">
+                                        <button type="submit" class="botao botao--risco botao--pequeno"
+                                                th:attr="aria-label=|Remover ${item.descricao}|">
+                                            Remover
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                             </tbody>
@@ -201,6 +218,28 @@
             </div>
         </div>
     </main>
+
+    <!-- Uma caixa só, reaproveitada por qualquer form marcado com
+         data-confirmar. O botão de confirmar devolve o valor pelo próprio
+         <dialog>, sem estado espalhado pela página. -->
+    <dialog id="confirmacao" class="dialogo" aria-labelledby="confirmacao-titulo"
+            th:if="${ordem.permiteAlterarItens}">
+        <form method="dialog" class="dialogo__caixa">
+            <h2 class="estampa estampa--painel" id="confirmacao-titulo">Remover da ordem</h2>
+            <p class="dialogo__texto">
+                Retirar <strong data-confirmar-alvo>este item</strong> da ordem?
+                O valor sai do total na hora.
+            </p>
+            <div class="dialogo__pe">
+                <button type="submit" value="cancelar" class="botao botao--chapa" autofocus>
+                    Manter item
+                </button>
+                <button type="submit" value="confirmar" class="botao botao--risco">
+                    Remover
+                </button>
+            </div>
+        </form>
+    </dialog>
 </div>
 </body>
 </html>

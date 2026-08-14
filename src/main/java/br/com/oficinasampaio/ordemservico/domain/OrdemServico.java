@@ -11,6 +11,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
+import br.com.oficinasampaio.shared.domain.RecursoNaoEncontradoException;
 import br.com.oficinasampaio.shared.domain.RegraNegocioException;
 
 import java.math.BigDecimal;
@@ -26,6 +27,9 @@ import java.util.UUID;
 public class OrdemServico {
 
     private static final BigDecimal ZERO_MONETARIO = new BigDecimal("0.00");
+
+    static final String ITENS_BLOQUEADOS =
+            "Itens só podem ser alterados enquanto a ordem não está finalizada";
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -124,6 +128,35 @@ public class OrdemServico {
         adicionarItem(TipoItemOrdemServico.PECA, descricao, quantidade, valorUnitario);
     }
 
+    /**
+     * Remove um serviço ou peça lançado por engano. Só vale na mesma janela em
+     * que o item pôde ser cadastrado — depois de finalizada, o valor da ordem
+     * está fechado e o item vira histórico.
+     */
+    public void removerItem(UUID itemId) {
+        Objects.requireNonNull(itemId, "Item é obrigatório");
+        if (!status.permiteAlterarItens()) {
+            throw new RegraNegocioException(ITENS_BLOQUEADOS);
+        }
+
+        var item = itens.stream()
+                .filter(candidato -> itemId.equals(candidato.getId()))
+                .findFirst()
+                .orElseThrow(() -> new RecursoNaoEncontradoException(
+                        "Item não encontrado nesta ordem de serviço"
+                ));
+
+        // A execução só começa com item lançado; esvaziar a lista depois disso
+        // deixaria a ordem num estado que a própria transição não permitiria.
+        if (status != StatusOrdemServico.ABERTA && itens.size() == 1) {
+            throw new RegraNegocioException(
+                    "A ordem já em andamento precisa manter ao menos um item"
+            );
+        }
+
+        itens.remove(item);
+    }
+
     public void iniciarExecucao() {
         executar(AcaoOrdemServico.INICIAR_EXECUCAO);
     }
@@ -177,9 +210,7 @@ public class OrdemServico {
             BigDecimal valorUnitario
     ) {
         if (!status.permiteAlterarItens()) {
-            throw new RegraNegocioException(
-                    "Itens só podem ser alterados enquanto a ordem não está finalizada"
-            );
+            throw new RegraNegocioException(ITENS_BLOQUEADOS);
         }
         itens.add(new ItemOrdemServico(this, tipo, descricao, quantidade, valorUnitario));
     }
