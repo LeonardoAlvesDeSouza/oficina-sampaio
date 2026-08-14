@@ -16,6 +16,11 @@
     <link rel="preload" th:href="@{/fontes/martian-mono-latin.woff2}" as="font"
           type="font/woff2" crossorigin>
     <link rel="stylesheet" th:href="@{/css/oficina.css}">
+
+    <!-- Único script da aplicação: confirma ações que desfazem alguma coisa.
+         Vai com defer para não travar a pintura da página, e a tela continua
+         funcionando se ele falhar. -->
+    <script th:src="@{/js/oficina.js}" defer></script>
 </head>
 <body>
 </body>

@@ -11,6 +11,9 @@ import br.com.oficinasampaio.ordemservico.application.AlterarStatusOrdemServicoC
 import br.com.oficinasampaio.ordemservico.application.BuscarOrdemServico;
 import br.com.oficinasampaio.ordemservico.application.ListarOrdensServico;
 import br.com.oficinasampaio.ordemservico.application.OrdemServicoDetalheView;
+import br.com.oficinasampaio.ordemservico.application.RemoverItemOrdemServico;
+import br.com.oficinasampaio.ordemservico.application.RemoverItemOrdemServicoCommand;
+import br.com.oficinasampaio.shared.domain.RecursoNaoEncontradoException;
 import br.com.oficinasampaio.shared.domain.RegraNegocioException;
 import br.com.oficinasampaio.shared.presentation.FormatoOficina;
 import br.com.oficinasampaio.shared.presentation.PerfilAutenticado;
@@ -40,6 +43,7 @@ public class OrdemServicoController {
 
     private final AbrirOrdemServico abrirOrdemServico;
     private final AdicionarItemOrdemServico adicionarItemOrdemServico;
+    private final RemoverItemOrdemServico removerItemOrdemServico;
     private final AlterarStatusOrdemServico alterarStatusOrdemServico;
     private final BuscarOrdemServico buscarOrdemServico;
     private final ListarOrdensServico listarOrdensServico;
@@ -49,6 +53,7 @@ public class OrdemServicoController {
     public OrdemServicoController(
             AbrirOrdemServico abrirOrdemServico,
             AdicionarItemOrdemServico adicionarItemOrdemServico,
+            RemoverItemOrdemServico removerItemOrdemServico,
             AlterarStatusOrdemServico alterarStatusOrdemServico,
             BuscarOrdemServico buscarOrdemServico,
             ListarOrdensServico listarOrdensServico,
@@ -57,6 +62,7 @@ public class OrdemServicoController {
     ) {
         this.abrirOrdemServico = abrirOrdemServico;
         this.adicionarItemOrdemServico = adicionarItemOrdemServico;
+        this.removerItemOrdemServico = removerItemOrdemServico;
         this.alterarStatusOrdemServico = alterarStatusOrdemServico;
         this.buscarOrdemServico = buscarOrdemServico;
         this.listarOrdensServico = listarOrdensServico;
@@ -141,6 +147,30 @@ public class OrdemServicoController {
                     form.getValorUnitario()
             ));
         } catch (RegraNegocioException exception) {
+            redirectAttributes.addFlashAttribute("erro", exception.getMessage());
+        } catch (ObjectOptimisticLockingFailureException exception) {
+            redirectAttributes.addFlashAttribute("erro", WebExceptionHandler.MENSAGEM_CONFLITO);
+        }
+        return "redirect:/ordens-servico/" + ordemServicoId;
+    }
+
+    /**
+     * O item some da ordem e a tela volta para o detalhe. Item já removido em
+     * outra aba vira recado na própria tela: a ordem continua existindo, então
+     * mandar o usuário para a página de erro seria um beco sem saída.
+     */
+    @PostMapping("/{ordemServicoId}/itens/{itemId}/remover")
+    public String removerItem(
+            @PathVariable UUID ordemServicoId,
+            @PathVariable UUID itemId,
+            RedirectAttributes redirectAttributes
+    ) {
+        try {
+            removerItemOrdemServico.executar(new RemoverItemOrdemServicoCommand(
+                    ordemServicoId, itemId
+            ));
+            redirectAttributes.addFlashAttribute("sucesso", "Item removido da ordem");
+        } catch (RegraNegocioException | RecursoNaoEncontradoException exception) {
             redirectAttributes.addFlashAttribute("erro", exception.getMessage());
         } catch (ObjectOptimisticLockingFailureException exception) {
             redirectAttributes.addFlashAttribute("erro", WebExceptionHandler.MENSAGEM_CONFLITO);
