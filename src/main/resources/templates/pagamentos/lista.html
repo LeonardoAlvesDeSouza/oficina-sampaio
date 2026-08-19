@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: cabeca('Pagamentos')}"></head>
+<body>
+<div class="oficina">
+    <nav th:replace="~{fragments/navegacao :: principal('pagamentos')}"></nav>
+
+    <main class="chao">
+        <header class="cabecalho-pagina">
+            <div>
+                <span class="etiqueta">Caixa</span>
+                <h1 class="estampa estampa--pagina">Pagamentos</h1>
+            </div>
+        </header>
+
+        <!-- As duas perguntas do balcão, na ordem em que se fazem: quanto falta
+             entrar e quanto já entrou. -->
+        <section class="resumo">
+            <div class="resumo__bloco resumo__bloco--receber">
+                <span class="resumo__rotulo">A receber</span>
+                <span class="resumo__valor"
+                      th:text="|R$ ${#numbers.formatDecimal(painel.totalAReceber, 1, 'POINT', 2, 'COMMA')}|">R$ 0,00</span>
+            </div>
+            <div class="resumo__bloco resumo__bloco--entrada">
+                <span class="resumo__rotulo">Recebido</span>
+                <span class="resumo__valor"
+                      th:text="|R$ ${#numbers.formatDecimal(painel.totalRecebido, 1, 'POINT', 2, 'COMMA')}|">R$ 0,00</span>
+            </div>
+        </section>
+
+        <div class="pilha">
+            <section class="painel painel--rolagem" th:if="${!painel.aReceber.isEmpty()}">
+                <div class="painel__cabeca">
+                    <h2 class="estampa estampa--painel">Contas em aberto</h2>
+                    <span class="dado"
+                          th:text="${painel.aReceber.size() == 1 ? '1 ordem' : painel.aReceber.size() + ' ordens'}">0 ordens</span>
+                </div>
+                <table class="tabela tabela--clicavel">
+                    <colgroup>
+                        <col class="col--veiculo">
+                        <col class="col--abertura">
+                        <col>
+                        <col class="col--total">
+                        <col class="col--retirada">
+                    </colgroup>
+                    <thead>
+                    <tr>
+                        <th scope="col">Veículo</th>
+                        <th scope="col">Aberta</th>
+                        <th scope="col">Serviço</th>
+                        <th scope="col" class="num">Total</th>
+                        <th scope="col" class="tabela__acoes">
+                            <span class="oculto-visual">Receber</span>
+                        </th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="linha : ${painel.aReceber}">
+                        <td th:with="ordemUrl=@{/ordens-servico/{id}(id=${linha.ordemServicoId})}">
+                            <span th:replace="~{fragments/componentes :: placaLink(${linha.placa}, ${ordemUrl})}"></span>
+                            <span class="chamada" th:text="${linha.veiculo}">Marca Modelo</span>
+                            <span class="apoio" th:text="${linha.cliente}">Cliente</span>
+                        </td>
+                        <td>
+                            <span class="dado" th:text="${linha.abertaEm}">00/00/00</span>
+                            <a class="ordem-numero"
+                               th:href="@{/ordens-servico/{id}(id=${linha.ordemServicoId})}"
+                               th:text="|OS ${linha.numeroOrdem}|">OS 00000000</a>
+                        </td>
+                        <td>
+                            <span th:replace="~{fragments/componentes :: estado(${linha.status})}"></span>
+                        </td>
+                        <td class="num">
+                            <span class="dado dado--forte"
+                                  th:text="|R$ ${#numbers.formatDecimal(linha.total, 1, 'POINT', 2, 'COMMA')}|">R$ 0,00</span>
+                        </td>
+                        <!-- O pagamento é registrado na ordem, que é quem fecha a
+                             conta. Daqui só se chega até lá. -->
+                        <td class="tabela__acoes">
+                            <a class="botao botao--acao botao--pequeno"
+                               th:href="@{/ordens-servico/{id}(id=${linha.ordemServicoId})}">Receber</a>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="painel" th:if="${painel.aReceber.isEmpty()}">
+                <div class="painel__corpo painel__corpo--largo nada-aqui">
+                    <h2 class="estampa estampa--painel">Nada a receber</h2>
+                    <p class="legenda">
+                        Nenhuma ordem finalizada está com a conta em aberto. A cobrança
+                        aparece aqui quando o serviço é finalizado.
+                    </p>
+                </div>
+            </section>
+
+            <section class="painel painel--rolagem" th:if="${!painel.recebidos.isEmpty()}">
+                <div class="painel__cabeca">
+                    <h2 class="estampa estampa--painel">Recebidos</h2>
+                    <span class="dado"
+                          th:text="${painel.recebidos.size() == 1 ? '1 pagamento' : painel.recebidos.size() + ' pagamentos'}">0 pagamentos</span>
+                </div>
+                <table class="tabela">
+                    <colgroup>
+                        <col class="col--abertura">
+                        <col>
+                        <col class="col--veiculo">
+                        <col class="col--total">
+                    </colgroup>
+                    <thead>
+                    <tr>
+                        <th scope="col">Recebido em</th>
+                        <th scope="col">Ordem</th>
+                        <th scope="col">Forma</th>
+                        <th scope="col" class="num">Valor</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="linha : ${painel.recebidos}">
+                        <td>
+                            <span class="dado" th:text="${linha.registradoEm}">00/00/00</span>
+                        </td>
+                        <td>
+                            <a class="chamada"
+                               th:href="@{/ordens-servico/{id}(id=${linha.ordemServicoId})}"
+                               th:text="|OS ${linha.numeroOrdem}|">OS 00000000</a>
+                            <span class="apoio" th:text="${linha.cliente}">Cliente</span>
+                        </td>
+                        <td>
+                            <span th:replace="~{fragments/componentes :: formaPagamento(${linha.forma})}"></span>
+                        </td>
+                        <td class="num">
+                            <span class="dado dado--forte valor valor--entrada"
+                                  th:text="|R$ ${#numbers.formatDecimal(linha.valor, 1, 'POINT', 2, 'COMMA')}|">R$ 0,00</span>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </section>
+        </div>
+    </main>
+</div>
+</body>
+</html>

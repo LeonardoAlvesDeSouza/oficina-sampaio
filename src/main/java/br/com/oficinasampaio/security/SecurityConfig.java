@@ -18,6 +18,9 @@ public class SecurityConfig {
                         .requestMatchers("/css/**", "/js/**", "/fontes/**", "/img/**",
                                 "/favicon.svg", "/favicon.ico").permitAll()
                         .requestMatchers("/usuarios/**").hasRole("ADMIN")
+                        // O balcão registra pagamento e vê o que falta receber;
+                        // a posição do caixa e o lançamento de saída são do dono.
+                        .requestMatchers("/financeiro/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form

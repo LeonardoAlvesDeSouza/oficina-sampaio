@@ -185,7 +185,8 @@
                     </div>
                 </section>
 
-                <aside class="painel">
+                <aside class="pilha">
+                <div class="painel">
                     <div class="painel__cabeca">
                         <h2 class="estampa estampa--painel">Totais</h2>
                     </div>
@@ -214,6 +215,83 @@
                             </div>
                         </dl>
                     </div>
+                </div>
+
+                <!-- A conta da ordem. Enquanto o valor pode mudar não há o que
+                     pagar, então a tela explica em vez de oferecer um botão que
+                     o domínio recusaria. -->
+                <div class="painel">
+                    <div class="painel__cabeca">
+                        <h2 class="estampa estampa--painel">Pagamento</h2>
+                        <span th:replace="~{fragments/componentes :: conta(${ordem.statusPagamento})}"></span>
+                    </div>
+
+                    <div class="painel__corpo" th:if="${pagamento}">
+                        <dl class="totais">
+                            <div class="totais__linha">
+                                <dt class="totais__rotulo">Forma</dt>
+                                <dd class="totais__valor"
+                                    th:text="${pagamento.forma.rotulo}">Dinheiro</dd>
+                            </div>
+                            <div class="totais__linha">
+                                <dt class="totais__rotulo">Recebido em</dt>
+                                <dd class="totais__valor" th:text="${pagamento.recebidoEm}">00/00/00</dd>
+                            </div>
+                            <div class="totais__linha">
+                                <dt class="totais__rotulo">Valor pago</dt>
+                                <dd class="totais__valor"
+                                    th:text="|R$ ${#numbers.formatDecimal(pagamento.valor, 1, 'POINT', 2, 'COMMA')}|">
+                                    R$ 0,00
+                                </dd>
+                            </div>
+                        </dl>
+                    </div>
+
+                    <div class="painel__corpo" th:if="${pagamento == null and ordem.permiteRegistrarPagamento}">
+                        <form th:action="@{/ordens-servico/{id}/pagamento(id=${ordem.id})}"
+                              th:object="${pagamentoForm}" method="post" novalidate>
+                            <!-- O valor não é digitado: é o total da ordem, e vai
+                                 escondido só para o domínio conferir se a tela
+                                 está com o total de agora. Campo de dinheiro
+                                 editável aqui seria convite a divergência. -->
+                            <input type="hidden" th:field="*{valor}">
+                            <div class="campos">
+                                <div class="campo">
+                                    <label for="forma" class="rotulo">Forma de pagamento</label>
+                                    <select id="forma" class="entrada" th:field="*{forma}"
+                                            th:classappend="${#fields.hasErrors('forma')} ? 'entrada--recusada'">
+                                        <option value="">Selecione</option>
+                                        <option th:each="opcao : ${formasPagamento}"
+                                                th:value="${opcao.name()}"
+                                                th:text="${opcao.rotulo}">Forma
+                                        </option>
+                                    </select>
+                                    <span class="recusa" th:errors="*{forma}"></span>
+                                </div>
+                                <div class="campo" th:if="${#fields.hasErrors('valor')}">
+                                    <span class="recusa" th:errors="*{valor}"></span>
+                                </div>
+                                <div class="campos__pe">
+                                    <button type="submit" class="botao botao--acao botao--cheio"
+                                            th:text="|Receber R$ ${#numbers.formatDecimal(ordem.total, 1, 'POINT', 2, 'COMMA')}|">
+                                        Receber
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="painel__corpo"
+                         th:if="${pagamento == null and !ordem.permiteRegistrarPagamento}">
+                        <p class="legenda" th:if="${ordem.status.name() == 'CANCELADA'}">
+                            Ordem cancelada não recebe pagamento.
+                        </p>
+                        <p class="legenda" th:unless="${ordem.status.name() == 'CANCELADA'}">
+                            A conta é fechada quando a ordem é finalizada. Até lá o total
+                            ainda pode mudar com um serviço ou uma peça.
+                        </p>
+                    </div>
+                </div>
                 </aside>
             </div>
         </div>

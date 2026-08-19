@@ -2,6 +2,10 @@ package br.com.oficinasampaio;
 
 import br.com.oficinasampaio.cliente.application.CadastrarCliente;
 import br.com.oficinasampaio.cliente.application.CadastrarClienteCommand;
+import br.com.oficinasampaio.financeiro.application.ConsultarCaixa;
+import br.com.oficinasampaio.financeiro.application.FormaPagamentoView;
+import br.com.oficinasampaio.financeiro.application.ListarPagamentos;
+import br.com.oficinasampaio.financeiro.application.TipoMovimentacaoView;
 import br.com.oficinasampaio.security.AdministradorInicialProperties;
 import br.com.oficinasampaio.security.AdministradorInicializador;
 import br.com.oficinasampaio.ordemservico.application.AbrirOrdemServico;
@@ -14,6 +18,7 @@ import br.com.oficinasampaio.ordemservico.application.AlterarStatusOrdemServicoC
 import br.com.oficinasampaio.ordemservico.application.BuscarOrdemServico;
 import br.com.oficinasampaio.ordemservico.application.ListarOrdensServico;
 import br.com.oficinasampaio.ordemservico.application.StatusOrdemServicoView;
+import br.com.oficinasampaio.ordemservico.application.StatusPagamentoView;
 import br.com.oficinasampaio.ordemservico.application.TipoItemOrdemServicoView;
 import br.com.oficinasampaio.veiculo.application.CadastrarVeiculo;
 import br.com.oficinasampaio.veiculo.application.CadastrarVeiculoCommand;
@@ -38,7 +43,6 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.util.UUID;
 import java.math.BigDecimal;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -101,6 +105,12 @@ class CadastroClienteVeiculoIntegrationTest {
 
     @Autowired
     private GarantirAdministradorInicial garantirAdministradorInicial;
+
+    @Autowired
+    private ListarPagamentos listarPagamentos;
+
+    @Autowired
+    private ConsultarCaixa consultarCaixa;
 
     @Autowired
     private MockMvc mockMvc;
@@ -439,27 +449,265 @@ class CadastroClienteVeiculoIntegrationTest {
     }
 
     @Test
-    void exibePagamentosFinanceiroERelatoriosComoModulosEmConstrucao() throws Exception {
-        var modulos = Map.of(
-                "/pagamentos", "Pagamentos",
-                "/financeiro", "Financeiro",
-                "/relatorios", "Relatórios"
+    void exibeRelatoriosComoModuloEmConstrucao() throws Exception {
+        mockMvc.perform(get("/relatorios")
+                        .with(user("funcionario").roles("FUNCIONARIO")))
+                .andExpect(status().isOk())
+                .andExpect(view().name("standby/modulo"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Relatórios")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Módulo em construção")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/pagamentos")));
+    }
+
+    @Test
+    void registraPagamentoPelaInterfaceWebEAlimentaOCaixaNaMesmaTransacao() throws Exception {
+        var ordem = ordemFinalizada(
+                "Oficina Pagamento", "543.114.870-38", "BCD-1E23", new BigDecimal("240.00")
         );
 
-        for (var modulo : modulos.entrySet()) {
-            mockMvc.perform(get(modulo.getKey())
-                            .with(user("funcionario").roles("FUNCIONARIO")))
-                    .andExpect(status().isOk())
-                    .andExpect(view().name("standby/modulo"))
-                    .andExpect(content().string(org.hamcrest.Matchers.containsString(modulo.getValue())))
-                    .andExpect(content().string(org.hamcrest.Matchers.containsString("Módulo em construção")));
-        }
+        mockMvc.perform(post("/ordens-servico/" + ordem + "/pagamento")
+                        .with(user("funcionario").roles("FUNCIONARIO"))
+                        .with(csrf())
+                        .param("forma", "PIX")
+                        .param("valor", "240.00"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/ordens-servico/" + ordem))
+                .andExpect(flash().attribute("sucesso", "Pagamento registrado e caixa atualizado"));
+
+        entityManager.flush();
+        entityManager.clear();
+        var caixa = consultarCaixa.executar();
+        var pagamentos = listarPagamentos.executar();
+        assertAll(
+                () -> assertEquals(
+                        StatusPagamentoView.PAGA,
+                        buscarOrdemServico.executar(ordem).statusPagamento()
+                ),
+                () -> assertEquals(1, pagamentos.size()),
+                () -> assertEquals(FormaPagamentoView.PIX, pagamentos.getFirst().forma()),
+                () -> assertEquals(new BigDecimal("240.00"), pagamentos.getFirst().valor()),
+                () -> assertEquals(1, caixa.movimentacoes().size()),
+                () -> assertEquals(new BigDecimal("240.00"), caixa.entradas()),
+                () -> assertEquals(new BigDecimal("240.00"), caixa.saldo()),
+                () -> assertEquals(
+                        TipoMovimentacaoView.ENTRADA,
+                        caixa.movimentacoes().getFirst().tipo()
+                )
+        );
+
+        mockMvc.perform(get("/ordens-servico/" + ordem)
+                        .with(user("funcionario").roles("FUNCIONARIO")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("PAGA")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("PIX")))
+                // Conta fechada não oferece mais o botão de receber.
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("Receber R$")
+                )));
+    }
+
+    @Test
+    void recusaPagamentoDeOrdemAindaNaoFinalizadaESemMexerNoCaixa() throws Exception {
+        var cliente = cadastrarCliente.executar(new CadastrarClienteCommand(
+                "Oficina Conta Aberta", "693.234.590-93", null, null
+        ));
+        var veiculo = cadastrarVeiculo.executar(new CadastrarVeiculoCommand(
+                cliente.id(), "CDE-2F34", "Toyota", "Corolla", 2022, "Prata", 40_000L
+        ));
+        var ordem = abrirOrdemServico.executar(new AbrirOrdemServicoCommand(
+                veiculo.id(), "Revisão de 40 mil"
+        ));
+        adicionarItemOrdemServico.executar(new AdicionarItemOrdemServicoCommand(
+                ordem.id(), TipoItemOrdemServicoView.SERVICO, "Revisão",
+                BigDecimal.ONE, new BigDecimal("600.00")
+        ));
+
+        mockMvc.perform(post("/ordens-servico/" + ordem.id() + "/pagamento")
+                        .with(user("funcionario").roles("FUNCIONARIO"))
+                        .with(csrf())
+                        .param("forma", "DINHEIRO")
+                        .param("valor", "600.00"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute(
+                        "erro", "O pagamento só pode ser registrado depois de finalizar a ordem"
+                ));
+
+        entityManager.flush();
+        entityManager.clear();
+        assertAll(
+                () -> assertEquals(
+                        StatusPagamentoView.PENDENTE,
+                        buscarOrdemServico.executar(ordem.id()).statusPagamento()
+                ),
+                () -> assertEquals(0, listarPagamentos.executar().size()),
+                () -> assertEquals(new BigDecimal("0.00"), consultarCaixa.executar().entradas())
+        );
+    }
+
+    @Test
+    void segundoPagamentoNaoDuplicaEntradaNoCaixa() throws Exception {
+        var ordem = ordemFinalizada(
+                "Oficina Duplicata", "306.219.140-96", "DEF-3G45", new BigDecimal("120.00")
+        );
+        var caminho = "/ordens-servico/" + ordem + "/pagamento";
+
+        mockMvc.perform(post(caminho)
+                        .with(user("funcionario").roles("FUNCIONARIO"))
+                        .with(csrf())
+                        .param("forma", "DINHEIRO")
+                        .param("valor", "120.00"))
+                .andExpect(flash().attribute("sucesso", "Pagamento registrado e caixa atualizado"));
+
+        mockMvc.perform(post(caminho)
+                        .with(user("funcionario").roles("FUNCIONARIO"))
+                        .with(csrf())
+                        .param("forma", "PIX")
+                        .param("valor", "120.00"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("erro", "Esta ordem já está paga"));
+
+        entityManager.flush();
+        entityManager.clear();
+        var caixa = consultarCaixa.executar();
+        assertAll(
+                () -> assertEquals(1, listarPagamentos.executar().size()),
+                () -> assertEquals(1, caixa.movimentacoes().size()),
+                () -> assertEquals(new BigDecimal("120.00"), caixa.entradas())
+        );
+    }
+
+    @Test
+    void recusaPagamentoComValorDiferenteDoTotalDaOrdem() throws Exception {
+        var ordem = ordemFinalizada(
+                "Oficina Valor Errado", "112.628.310-84", "EFG-4H56", new BigDecimal("300.00")
+        );
+
+        mockMvc.perform(post("/ordens-servico/" + ordem + "/pagamento")
+                        .with(user("funcionario").roles("FUNCIONARIO"))
+                        .with(csrf())
+                        .param("forma", "PIX")
+                        .param("valor", "250.00"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute(
+                        "erro", "O valor do pagamento deve ser igual ao total da ordem"
+                ));
+
+        entityManager.flush();
+        entityManager.clear();
+        assertEquals(0, listarPagamentos.executar().size());
+    }
+
+    @Test
+    void pagamentosMostraContaEmAbertoEDepoisORecebimento() throws Exception {
+        var ordem = ordemFinalizada(
+                "Oficina Balcão", "483.316.010-40", "FGH-5J67", new BigDecimal("180.00")
+        );
 
         mockMvc.perform(get("/pagamentos")
                         .with(user("funcionario").roles("FUNCIONARIO")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("/pagamentos")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("/financeiro")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("/relatorios")));
+                .andExpect(status().isOk())
+                .andExpect(view().name("pagamentos/lista"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Contas em aberto")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("FGH5J67")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("180,00")));
+
+        mockMvc.perform(post("/ordens-servico/" + ordem + "/pagamento")
+                        .with(user("funcionario").roles("FUNCIONARIO"))
+                        .with(csrf())
+                        .param("forma", "CARTAO_DEBITO")
+                        .param("valor", "180.00"))
+                .andExpect(status().is3xxRedirection());
+
+        entityManager.flush();
+        entityManager.clear();
+        mockMvc.perform(get("/pagamentos")
+                        .with(user("funcionario").roles("FUNCIONARIO")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Nada a receber")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Recebidos")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Cartão de débito")));
+    }
+
+    @Test
+    void somenteAdministradorVeOCaixaELancaSaida() throws Exception {
+        mockMvc.perform(get("/financeiro")
+                        .with(user("funcionario").roles("FUNCIONARIO")))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/financeiro/saidas")
+                        .with(user("funcionario").roles("FUNCIONARIO"))
+                        .with(csrf())
+                        .param("descricao", "Compra de peça")
+                        .param("valor", "80.00"))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/financeiro/saidas")
+                        .with(user("admin").roles("ADMIN"))
+                        .with(csrf())
+                        .param("descricao", "Jogo de pastilhas no fornecedor")
+                        .param("valor", "180.50"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/financeiro"))
+                .andExpect(flash().attribute("sucesso", "Saída lançada no caixa"));
+
+        entityManager.flush();
+        entityManager.clear();
+        var caixa = consultarCaixa.executar();
+        assertAll(
+                () -> assertEquals(new BigDecimal("180.50"), caixa.saidas()),
+                () -> assertEquals(new BigDecimal("-180.50"), caixa.saldo())
+        );
+
+        mockMvc.perform(get("/financeiro")
+                        .with(user("admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(view().name("financeiro/caixa"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Saldo")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "Jogo de pastilhas no fornecedor"
+                )))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("180,50")));
+    }
+
+    @Test
+    void rejeitaSaidaSemValorNaInterfaceWeb() throws Exception {
+        mockMvc.perform(post("/financeiro/saidas")
+                        .with(user("admin").roles("ADMIN"))
+                        .with(csrf())
+                        .param("descricao", "Conta de luz")
+                        .param("valor", "0"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("financeiro/caixa"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Valor deve ser positivo")));
+
+        entityManager.flush();
+        entityManager.clear();
+        assertEquals(new BigDecimal("0.00"), consultarCaixa.executar().saidas());
+    }
+
+    /** Ordem pronta para pagar: cliente, veículo, um serviço e o ciclo até finalizar. */
+    private UUID ordemFinalizada(String nome, String documento, String placa, BigDecimal valor) {
+        var cliente = cadastrarCliente.executar(new CadastrarClienteCommand(
+                nome, documento, null, null
+        ));
+        var veiculo = cadastrarVeiculo.executar(new CadastrarVeiculoCommand(
+                cliente.id(), placa, "Volkswagen", "Gol", 2021, "Prata", 30_000L
+        ));
+        var ordem = abrirOrdemServico.executar(new AbrirOrdemServicoCommand(
+                veiculo.id(), "Serviço concluído aguardando pagamento"
+        ));
+        adicionarItemOrdemServico.executar(new AdicionarItemOrdemServicoCommand(
+                ordem.id(), TipoItemOrdemServicoView.SERVICO, "Serviço executado",
+                BigDecimal.ONE, valor
+        ));
+        alterarStatusOrdemServico.executar(new AlterarStatusOrdemServicoCommand(
+                ordem.id(), AcaoOrdemServicoView.INICIAR_EXECUCAO
+        ));
+        alterarStatusOrdemServico.executar(new AlterarStatusOrdemServicoCommand(
+                ordem.id(), AcaoOrdemServicoView.FINALIZAR
+        ));
+        entityManager.flush();
+        return ordem.id();
     }
 
     @Test

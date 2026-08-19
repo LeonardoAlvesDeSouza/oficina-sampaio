@@ -1241,6 +1241,131 @@ textarea.entrada {
     font-weight: 700;
 }
 
+/* --------------------------------------------------------------- o caixa */
+
+/* Blocos de número grande no topo da tela: o que entrou, o que saiu, o que
+   falta receber. A cor fica na borda de cima, como etiqueta de pasta — o fundo
+   continua chapa para o número ser a única coisa que salta. */
+.resumo {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.6rem;
+}
+
+.resumo__bloco {
+    padding: .85rem 1.1rem 1rem;
+    background: var(--chapa);
+    border: 1px solid var(--risco);
+    border-top: 3px solid var(--limalha);
+    border-radius: 3px;
+}
+
+.resumo__bloco--entrada {
+    border-top-color: var(--liberado);
+}
+
+.resumo__bloco--saida {
+    border-top-color: var(--sirene);
+}
+
+.resumo__bloco--saldo {
+    border-top-color: var(--placa-azul);
+}
+
+.resumo__bloco--receber {
+    border-top-color: var(--bancada);
+}
+
+.resumo__rotulo {
+    display: block;
+    font-size: .6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--limalha);
+    margin-bottom: .45rem;
+}
+
+.resumo__valor {
+    display: block;
+    font-family: var(--mono);
+    font-variation-settings: "wdth" 87.5;
+    font-variant-numeric: tabular-nums;
+    font-size: 1.375rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+/* Situação da conta da ordem. Sem o ponto do .estado e com o R$ na frente:
+   o ciclo do serviço e o dinheiro são leituras diferentes e não devem se
+   parecer, senão "finalizada" passa por "paga". */
+.conta {
+    display: inline-flex;
+    align-items: baseline;
+    gap: .35em;
+    padding: .4em .6em;
+    border: 1px solid var(--risco);
+    background: var(--chapa-2);
+    font-size: .6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .09em;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.conta::before {
+    content: "R$";
+    font-family: var(--mono);
+    font-size: .875em;
+    opacity: .7;
+}
+
+.conta[data-conta="PAGA"] {
+    border-color: var(--liberado);
+    background: var(--tinta-liberado);
+    color: var(--liberado-escuro);
+}
+
+.conta[data-conta="PENDENTE"] {
+    border-color: var(--bancada);
+    background: var(--tinta-bancada);
+    color: var(--bancada-escura);
+}
+
+/* Como o dinheiro entrou. É dado de conferência, não estado: fica discreto. */
+.forma {
+    font-size: .8125rem;
+    font-weight: 600;
+}
+
+.tipo-movimentacao {
+    font-size: .625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--limalha);
+    white-space: nowrap;
+}
+
+.tipo-movimentacao[data-tipo="ENTRADA"] {
+    color: var(--liberado-escuro);
+}
+
+.tipo-movimentacao[data-tipo="SAIDA"] {
+    color: var(--sirene);
+}
+
+.valor--entrada {
+    color: var(--liberado-escuro);
+}
+
+.valor--saida {
+    color: var(--sirene);
+}
+
 /* --------------------------------------------------------- ficha do veículo */
 
 .ficha-veiculo {

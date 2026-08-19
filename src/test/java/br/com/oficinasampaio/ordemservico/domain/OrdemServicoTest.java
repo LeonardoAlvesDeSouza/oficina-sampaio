@@ -1,11 +1,13 @@
 package br.com.oficinasampaio.ordemservico.domain;
 
+import br.com.oficinasampaio.shared.domain.FormaPagamento;
 import br.com.oficinasampaio.shared.domain.RecursoNaoEncontradoException;
 import br.com.oficinasampaio.shared.domain.RegraNegocioException;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -16,6 +18,8 @@ class OrdemServicoTest {
 
     private static final String ITENS_BLOQUEADOS =
             "Itens só podem ser alterados enquanto a ordem não está finalizada";
+
+    private static final Instant PAGO_EM = Instant.parse("2026-08-12T18:30:00Z");
 
     @Test
     void abreOrdemSemItensComStatusAberta() {
@@ -300,6 +304,132 @@ class OrdemServicoTest {
 
         var erro = assertThrows(RegraNegocioException.class, ordemEmExecucao::cancelar);
         assertEquals("A ordem entregue ou cancelada não pode ser cancelada", erro.getMessage());
+    }
+
+    @Test
+    void registraPagamentoDaOrdemFinalizadaEAnunciaOEvento() {
+        var ordem = ordemComServico();
+        ordem.iniciarExecucao();
+        ordem.finalizar();
+
+        var evento = ordem.registrarPagamento(
+                FormaPagamento.PIX, new BigDecimal("90.00"), PAGO_EM
+        );
+
+        assertAll(
+                () -> assertEquals(StatusPagamento.PAGA, ordem.getStatusPagamento()),
+                () -> assertEquals(true, ordem.isPaga()),
+                () -> assertEquals(false, ordem.permiteRegistrarPagamento()),
+                () -> assertEquals(ordem.getClienteId(), evento.clienteId()),
+                () -> assertEquals(FormaPagamento.PIX, evento.forma()),
+                () -> assertEquals(new BigDecimal("90.00"), evento.valor()),
+                () -> assertEquals(PAGO_EM, evento.registradoEm()),
+                // O estado operacional não se mexe: quem paga não entrega o carro.
+                () -> assertEquals(StatusOrdemServico.FINALIZADA, ordem.getStatus())
+        );
+    }
+
+    @Test
+    void aceitaPagamentoDaOrdemJaEntregue() {
+        var ordem = ordemComServico();
+        ordem.iniciarExecucao();
+        ordem.finalizar();
+        ordem.entregar();
+
+        ordem.registrarPagamento(FormaPagamento.DINHEIRO, new BigDecimal("90.00"), PAGO_EM);
+
+        assertEquals(StatusPagamento.PAGA, ordem.getStatusPagamento());
+    }
+
+    @Test
+    void recusaPagamentoEnquantoOTotalAindaPodeMudar() {
+        var aberta = ordemComServico();
+        var emExecucao = ordemComServico();
+        emExecucao.iniciarExecucao();
+        var aguardandoPeca = ordemComServico();
+        aguardandoPeca.iniciarExecucao();
+        aguardandoPeca.aguardarPeca();
+
+        for (var ordem : List.of(aberta, emExecucao, aguardandoPeca)) {
+            var erro = assertThrows(RegraNegocioException.class, () ->
+                    ordem.registrarPagamento(FormaPagamento.PIX, new BigDecimal("90.00"), PAGO_EM)
+            );
+            assertAll(
+                    () -> assertEquals(
+                            "O pagamento só pode ser registrado depois de finalizar a ordem",
+                            erro.getMessage()
+                    ),
+                    () -> assertEquals(StatusPagamento.PENDENTE, ordem.getStatusPagamento()),
+                    () -> assertEquals(false, ordem.permiteRegistrarPagamento())
+            );
+        }
+    }
+
+    @Test
+    void recusaPagamentoDeOrdemCancelada() {
+        var ordem = ordemComServico();
+        ordem.cancelar();
+
+        var erro = assertThrows(RegraNegocioException.class, () ->
+                ordem.registrarPagamento(FormaPagamento.PIX, new BigDecimal("90.00"), PAGO_EM)
+        );
+
+        assertEquals("Ordem cancelada não recebe pagamento", erro.getMessage());
+        assertEquals(StatusPagamento.PENDENTE, ordem.getStatusPagamento());
+    }
+
+    @Test
+    void recusaSegundoPagamentoDaMesmaOrdem() {
+        var ordem = ordemComServico();
+        ordem.iniciarExecucao();
+        ordem.finalizar();
+        ordem.registrarPagamento(FormaPagamento.PIX, new BigDecimal("90.00"), PAGO_EM);
+
+        var erro = assertThrows(RegraNegocioException.class, () ->
+                ordem.registrarPagamento(FormaPagamento.DINHEIRO, new BigDecimal("90.00"), PAGO_EM)
+        );
+
+        assertEquals("Esta ordem já está paga", erro.getMessage());
+    }
+
+    /**
+     * O total defasado é o caso real: outra aba lançou uma peça depois que a tela
+     * do pagamento foi aberta. Recusar é melhor que gravar entrada de caixa que
+     * não corresponde à ordem.
+     */
+    @Test
+    void recusaValorDiferenteDoTotalDaOrdem() {
+        var ordem = ordemComServico();
+        ordem.iniciarExecucao();
+        ordem.finalizar();
+
+        var erro = assertThrows(RegraNegocioException.class, () ->
+                ordem.registrarPagamento(FormaPagamento.PIX, new BigDecimal("80.00"), PAGO_EM)
+        );
+
+        assertEquals("O valor do pagamento deve ser igual ao total da ordem", erro.getMessage());
+        assertEquals(StatusPagamento.PENDENTE, ordem.getStatusPagamento());
+    }
+
+    @Test
+    void aceitaValorComEscalaDiferenteEGravaOTotalDoAgregado() {
+        var ordem = ordemComServico();
+        ordem.iniciarExecucao();
+        ordem.finalizar();
+
+        var evento = ordem.registrarPagamento(FormaPagamento.DINHEIRO, new BigDecimal("90"), PAGO_EM);
+
+        assertEquals(new BigDecimal("90.00"), evento.valor());
+    }
+
+    @Test
+    void ordemNasceComContaEmAberto() {
+        var ordem = ordemComServico();
+
+        assertAll(
+                () -> assertEquals(StatusPagamento.PENDENTE, ordem.getStatusPagamento()),
+                () -> assertEquals(false, ordem.isPaga())
+        );
     }
 
     private static OrdemServico ordemComServico() {

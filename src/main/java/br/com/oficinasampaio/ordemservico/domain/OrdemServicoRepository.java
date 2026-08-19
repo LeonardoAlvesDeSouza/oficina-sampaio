@@ -11,4 +11,10 @@ public interface OrdemServicoRepository {
     Optional<OrdemServico> buscarPorId(UUID ordemServicoId);
 
     List<OrdemServico> listar();
+
+    /**
+     * Ordens com o valor fechado e a conta em aberto, das mais antigas para as
+     * mais novas: o que está esperando pagamento há mais tempo aparece primeiro.
+     */
+    List<OrdemServico> listarAReceber();
 }

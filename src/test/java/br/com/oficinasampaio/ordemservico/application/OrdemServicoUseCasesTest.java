@@ -4,6 +4,9 @@ import br.com.oficinasampaio.cliente.application.ClienteQueries;
 import br.com.oficinasampaio.ordemservico.domain.ItemOrdemServico;
 import br.com.oficinasampaio.ordemservico.domain.OrdemServico;
 import br.com.oficinasampaio.ordemservico.domain.OrdemServicoRepository;
+import br.com.oficinasampaio.ordemservico.domain.StatusOrdemServico;
+import br.com.oficinasampaio.shared.domain.FormaPagamento;
+import br.com.oficinasampaio.shared.domain.PagamentoRegistrado;
 import br.com.oficinasampaio.shared.domain.RecursoNaoEncontradoException;
 import br.com.oficinasampaio.shared.domain.RegraNegocioException;
 import br.com.oficinasampaio.veiculo.application.VeiculoParaOrdem;
@@ -15,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +30,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class OrdemServicoUseCasesTest {
+
+    private static final Instant INSTANTE = Instant.parse("2026-08-11T12:00:00Z");
+    private static final Clock RELOGIO = Clock.fixed(INSTANTE, ZoneOffset.UTC);
 
     @Test
     void ordemAbertaParaVeiculoEClienteAtivosPodeSerConsultada() {
@@ -287,6 +294,117 @@ class OrdemServicoUseCasesTest {
         );
     }
 
+    @Test
+    void registraPagamentoDaOrdemFinalizadaEPublicaOEventoParaOCaixa() {
+        var repositorio = new OrdemServicoRepositoryEmMemoria();
+        var ordem = ordemFinalizada(repositorio, new BigDecimal("150.00"));
+        var publicados = new ArrayList<Object>();
+
+        var detalhe = new RegistrarPagamentoOrdemServico(
+                repositorio, publicados::add, RELOGIO
+        ).executar(new RegistrarPagamentoOrdemServicoCommand(
+                ordem.id(), FormaPagamento.CARTAO_DEBITO, new BigDecimal("150.00")
+        ));
+
+        assertAll(
+                () -> assertEquals(StatusPagamentoView.PAGA, detalhe.statusPagamento()),
+                () -> assertEquals(false, detalhe.permiteRegistrarPagamento()),
+                () -> assertEquals(1, publicados.size())
+        );
+        var evento = (PagamentoRegistrado) publicados.getFirst();
+        assertAll(
+                () -> assertEquals(ordem.id(), evento.ordemServicoId()),
+                () -> assertEquals(ordem.clienteId(), evento.clienteId()),
+                () -> assertEquals(FormaPagamento.CARTAO_DEBITO, evento.forma()),
+                () -> assertEquals(new BigDecimal("150.00"), evento.valor()),
+                () -> assertEquals(INSTANTE, evento.registradoEm())
+        );
+    }
+
+    /**
+     * Regra violada não pode deixar rastro: sem pagamento gravado e, sobretudo,
+     * sem evento publicado — evento publicado seria entrada no caixa sem
+     * pagamento nenhum atrás dela.
+     */
+    @Test
+    void naoPublicaEventoQuandoOPagamentoERecusado() {
+        var repositorio = new OrdemServicoRepositoryEmMemoria();
+        var ordem = abrirOrdem(repositorio, "Revisão");
+        new AdicionarItemOrdemServico(repositorio).executar(new AdicionarItemOrdemServicoCommand(
+                ordem.id(), TipoItemOrdemServicoView.SERVICO,
+                "Diagnóstico", BigDecimal.ONE, new BigDecimal("90.00")
+        ));
+        var publicados = new ArrayList<Object>();
+        var registrar = new RegistrarPagamentoOrdemServico(repositorio, publicados::add, RELOGIO);
+
+        var erro = assertThrows(RegraNegocioException.class, () ->
+                registrar.executar(new RegistrarPagamentoOrdemServicoCommand(
+                        ordem.id(), FormaPagamento.PIX, new BigDecimal("90.00")
+                ))
+        );
+
+        assertAll(
+                () -> assertEquals(
+                        "O pagamento só pode ser registrado depois de finalizar a ordem",
+                        erro.getMessage()
+                ),
+                () -> assertEquals(0, publicados.size()),
+                () -> assertEquals(
+                        StatusPagamentoView.PENDENTE,
+                        new BuscarOrdemServico(repositorio).executar(ordem.id()).statusPagamento()
+                )
+        );
+    }
+
+    @Test
+    void listaAReceberSomenteAsOrdensComValorFechadoEContaEmAberto() {
+        var repositorio = new OrdemServicoRepositoryEmMemoria();
+        var aberta = abrirOrdem(repositorio, "Ainda em aberto");
+        new AdicionarItemOrdemServico(repositorio).executar(new AdicionarItemOrdemServicoCommand(
+                aberta.id(), TipoItemOrdemServicoView.SERVICO,
+                "Diagnóstico", BigDecimal.ONE, new BigDecimal("90.00")
+        ));
+        var cancelada = abrirOrdem(repositorio, "Desistiu do serviço");
+        new AlterarStatusOrdemServico(repositorio).executar(new AlterarStatusOrdemServicoCommand(
+                cancelada.id(), AcaoOrdemServicoView.CANCELAR
+        ));
+        var paga = ordemFinalizada(repositorio, new BigDecimal("200.00"));
+        new RegistrarPagamentoOrdemServico(repositorio, evento -> {
+        }, RELOGIO).executar(new RegistrarPagamentoOrdemServicoCommand(
+                paga.id(), FormaPagamento.DINHEIRO, new BigDecimal("200.00")
+        ));
+        var aReceber = ordemFinalizada(repositorio, new BigDecimal("310.00"));
+
+        var pendentes = new ListarOrdensAReceber(repositorio).executar();
+
+        assertEquals(1, pendentes.size());
+        assertAll(
+                () -> assertEquals(aReceber.id(), pendentes.getFirst().id()),
+                () -> assertEquals(new BigDecimal("310.00"), pendentes.getFirst().total()),
+                () -> assertEquals(StatusPagamentoView.PENDENTE, pendentes.getFirst().statusPagamento())
+        );
+    }
+
+    /** Ordem pronta para pagar: um serviço lançado, executada e finalizada. */
+    private static OrdemServicoView ordemFinalizada(
+            OrdemServicoRepository repositorio,
+            BigDecimal valorDoServico
+    ) {
+        var ordem = abrirOrdem(repositorio, "Revisão completa");
+        new AdicionarItemOrdemServico(repositorio).executar(new AdicionarItemOrdemServicoCommand(
+                ordem.id(), TipoItemOrdemServicoView.SERVICO,
+                "Revisão", BigDecimal.ONE, valorDoServico
+        ));
+        var alterarStatus = new AlterarStatusOrdemServico(repositorio);
+        alterarStatus.executar(new AlterarStatusOrdemServicoCommand(
+                ordem.id(), AcaoOrdemServicoView.INICIAR_EXECUCAO
+        ));
+        alterarStatus.executar(new AlterarStatusOrdemServicoCommand(
+                ordem.id(), AcaoOrdemServicoView.FINALIZAR
+        ));
+        return ordem;
+    }
+
     private static OrdemServicoView abrirOrdem(
             OrdemServicoRepository repositorio,
             String relatoProblema
@@ -296,12 +414,8 @@ class OrdemServicoUseCasesTest {
         VeiculoQueries veiculos = id -> Optional.of(new VeiculoParaOrdem(
                 veiculoId, clienteId, "ABC1D23", "Volkswagen", "Gol", true
         ));
-        return new AbrirOrdemServico(
-                id -> true,
-                veiculos,
-                repositorio,
-                Clock.fixed(Instant.parse("2026-08-11T12:00:00Z"), ZoneOffset.UTC)
-        ).executar(new AbrirOrdemServicoCommand(veiculoId, relatoProblema));
+        return new AbrirOrdemServico(id -> true, veiculos, repositorio, RELOGIO)
+                .executar(new AbrirOrdemServicoCommand(veiculoId, relatoProblema));
     }
 
     /**
@@ -331,6 +445,16 @@ class OrdemServicoUseCasesTest {
         @Override
         public List<OrdemServico> listar() {
             return List.copyOf(ordens.values());
+        }
+
+        /** Mesmo recorte da consulta real: valor fechado e conta em aberto. */
+        @Override
+        public List<OrdemServico> listarAReceber() {
+            return ordens.values().stream()
+                    .filter(ordem -> !ordem.isPaga())
+                    .filter(ordem -> !ordem.permiteAlterarItens())
+                    .filter(ordem -> ordem.getStatus() != StatusOrdemServico.CANCELADA)
+                    .toList();
         }
 
         private static UUID gerarId(OrdemServico ordemServico) {

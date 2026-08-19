@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: cabeca('Financeiro')}"></head>
+<body>
+<div class="oficina">
+    <nav th:replace="~{fragments/navegacao :: principal('financeiro')}"></nav>
+
+    <main class="chao">
+        <header class="cabecalho-pagina">
+            <div>
+                <span class="etiqueta">Caixa</span>
+                <h1 class="estampa estampa--pagina">Financeiro</h1>
+            </div>
+            <span class="dado" th:text="|${movimentacoes.size()} lançamentos|">0 lançamentos</span>
+        </header>
+
+        <div th:if="${sucesso}" class="recado recado--feito" role="status" th:text="${sucesso}"></div>
+        <div th:if="${erro}" class="recado recado--falha" role="alert" th:text="${erro}"></div>
+
+        <!-- O saldo é conta feita na hora: entradas menos saídas. Não existe
+             número guardado que possa divergir do histórico abaixo. -->
+        <section class="resumo">
+            <div class="resumo__bloco resumo__bloco--entrada">
+                <span class="resumo__rotulo">Entradas</span>
+                <span class="resumo__valor"
+                      th:text="|R$ ${#numbers.formatDecimal(caixa.entradas, 1, 'POINT', 2, 'COMMA')}|">R$ 0,00</span>
+            </div>
+            <div class="resumo__bloco resumo__bloco--saida">
+                <span class="resumo__rotulo">Saídas</span>
+                <span class="resumo__valor"
+                      th:text="|R$ ${#numbers.formatDecimal(caixa.saidas, 1, 'POINT', 2, 'COMMA')}|">R$ 0,00</span>
+            </div>
+            <div class="resumo__bloco resumo__bloco--saldo">
+                <span class="resumo__rotulo">Saldo</span>
+                <span class="resumo__valor"
+                      th:classappend="${caixa.saldo.signum() < 0} ? 'valor--saida'"
+                      th:text="|R$ ${#numbers.formatDecimal(caixa.saldo, 1, 'POINT', 2, 'COMMA')}|">R$ 0,00</span>
+            </div>
+        </section>
+
+        <div class="dupla">
+            <section class="painel">
+                <div class="painel__cabeca">
+                    <h2 class="estampa estampa--painel">Lançar saída</h2>
+                </div>
+                <div class="painel__corpo">
+                    <p class="legenda">
+                        Peça comprada no fornecedor, conta da oficina, retirada do dia.
+                        Entrada não se lança à mão: ela nasce do pagamento da ordem.
+                    </p>
+                    <form th:action="@{/financeiro/saidas}" th:object="${form}" method="post" novalidate>
+                        <div class="campos">
+                            <div class="campo">
+                                <label for="descricao" class="rotulo">Descrição</label>
+                                <input id="descricao" class="entrada" th:field="*{descricao}"
+                                       th:classappend="${#fields.hasErrors('descricao')} ? 'entrada--recusada'">
+                                <span class="recusa" th:errors="*{descricao}"></span>
+                            </div>
+                            <div class="campo">
+                                <label for="valor" class="rotulo">Valor</label>
+                                <input id="valor" type="number" min="0.01" step="0.01"
+                                       class="entrada" th:field="*{valor}"
+                                       th:classappend="${#fields.hasErrors('valor')} ? 'entrada--recusada'">
+                                <span class="recusa" th:errors="*{valor}"></span>
+                            </div>
+                            <div class="campos__pe">
+                                <button type="submit" class="botao botao--acao botao--cheio">
+                                    Lançar saída
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <section>
+                <div class="painel painel--rolagem" th:if="${!movimentacoes.isEmpty()}">
+                    <div class="painel__cabeca">
+                        <h2 class="estampa estampa--painel">Movimentações</h2>
+                    </div>
+                    <table class="tabela">
+                        <colgroup>
+                            <col class="col--abertura">
+                            <col>
+                            <col class="col--total">
+                        </colgroup>
+                        <thead>
+                        <tr>
+                            <th scope="col">Quando</th>
+                            <th scope="col">Lançamento</th>
+                            <th scope="col" class="num">Valor</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="linha : ${movimentacoes}">
+                            <td>
+                                <span class="dado" th:text="${linha.ocorridaEm}">00/00/00</span>
+                            </td>
+                            <td>
+                                <span class="tipo-movimentacao"
+                                      th:attr="data-tipo=${linha.tipo.name()}"
+                                      th:text="${linha.tipo.rotulo}">Entrada</span>
+                                <span class="chamada" th:text="${linha.descricao}">Descrição</span>
+                            </td>
+                            <!-- O sinal na frente do valor é o que faz o extrato
+                                 ser lido de relance; a cor sozinha não basta. -->
+                            <td class="num">
+                                <span class="dado dado--forte valor"
+                                      th:classappend="${linha.tipo.name() == 'ENTRADA'} ? 'valor--entrada' : 'valor--saida'"
+                                      th:text="|${linha.tipo.name() == 'ENTRADA' ? '+' : '−'} R$ ${#numbers.formatDecimal(linha.valor, 1, 'POINT', 2, 'COMMA')}|">
+                                    + R$ 0,00
+                                </span>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="painel" th:if="${movimentacoes.isEmpty()}">
+                    <div class="painel__corpo painel__corpo--largo nada-aqui">
+                        <h2 class="estampa estampa--painel">Caixa sem movimento</h2>
+                        <p class="legenda">
+                            A primeira entrada aparece quando uma ordem de serviço for paga.
+                            Saídas podem ser lançadas ao lado.
+                        </p>
+                        <a th:href="@{/pagamentos}" class="botao botao--chapa">Ver contas em aberto</a>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+</div>
+</body>
+</html>
