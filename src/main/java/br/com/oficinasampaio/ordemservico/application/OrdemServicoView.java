@@ -13,6 +13,7 @@ public record OrdemServicoView(
         String relatoProblema,
         Instant abertaEm,
         StatusOrdemServicoView status,
+        StatusPagamentoView statusPagamento,
         BigDecimal totalServicos,
         BigDecimal totalPecas,
         BigDecimal total
@@ -26,6 +27,7 @@ public record OrdemServicoView(
                 ordem.getRelatoProblema(),
                 ordem.getAbertaEm(),
                 StatusOrdemServicoView.valueOf(ordem.getStatus().name()),
+                StatusPagamentoView.valueOf(ordem.getStatusPagamento().name()),
                 ordem.getTotalServicos(),
                 ordem.getTotalPecas(),
                 ordem.getTotal()

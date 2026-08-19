@@ -21,6 +21,16 @@
 <span th:fragment="estadoGrande(status)" class="estado estado--grande"
       th:attr="data-status=${status.name()}" th:text="${status.rotulo}">Aberta</span>
 
+<!-- Estado da conta da ordem. Deliberadamente diferente de .estado: o ciclo do
+     serviço e a situação do dinheiro são duas leituras distintas, e desenhá-las
+     iguais faria o balcão confundir "finalizada" com "paga". -->
+<span th:fragment="conta(statusPagamento)" class="conta"
+      th:attr="data-conta=${statusPagamento.name()}" th:text="${statusPagamento.rotulo}">A receber</span>
+
+<!-- Forma de pagamento: dado, não rótulo de estado — foi assim que o dinheiro
+     entrou, e é o que se confere contra a maquininha no fim do dia. -->
+<span th:fragment="formaPagamento(forma)" class="forma" th:text="${forma.rotulo}">Dinheiro</span>
+
 <!-- A marca da oficina, sempre sobre fundo escuro (rail e portaria).
      Hoje é tipográfica: "Oficina" sobre a placa SAMPAIO. Quando chegar a logo
      da oficina, ela entra aqui como <img class="marca__logo"> e as duas telas

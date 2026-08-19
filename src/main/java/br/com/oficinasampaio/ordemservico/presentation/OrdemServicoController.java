@@ -1,6 +1,8 @@
 package br.com.oficinasampaio.ordemservico.presentation;
 
 import br.com.oficinasampaio.cliente.application.BuscarCliente;
+import br.com.oficinasampaio.financeiro.application.FormaPagamentoView;
+import br.com.oficinasampaio.financeiro.application.PagamentoQueries;
 import br.com.oficinasampaio.ordemservico.application.AbrirOrdemServico;
 import br.com.oficinasampaio.ordemservico.application.AbrirOrdemServicoCommand;
 import br.com.oficinasampaio.ordemservico.application.AcaoOrdemServicoView;
@@ -11,6 +13,8 @@ import br.com.oficinasampaio.ordemservico.application.AlterarStatusOrdemServicoC
 import br.com.oficinasampaio.ordemservico.application.BuscarOrdemServico;
 import br.com.oficinasampaio.ordemservico.application.ListarOrdensServico;
 import br.com.oficinasampaio.ordemservico.application.OrdemServicoDetalheView;
+import br.com.oficinasampaio.ordemservico.application.RegistrarPagamentoOrdemServico;
+import br.com.oficinasampaio.ordemservico.application.RegistrarPagamentoOrdemServicoCommand;
 import br.com.oficinasampaio.ordemservico.application.RemoverItemOrdemServico;
 import br.com.oficinasampaio.ordemservico.application.RemoverItemOrdemServicoCommand;
 import br.com.oficinasampaio.shared.domain.RecursoNaoEncontradoException;
@@ -20,6 +24,7 @@ import br.com.oficinasampaio.shared.presentation.PerfilAutenticado;
 import br.com.oficinasampaio.shared.presentation.WebExceptionHandler;
 import br.com.oficinasampaio.veiculo.application.VeiculoQueries;
 import jakarta.validation.Valid;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -41,33 +46,42 @@ import java.util.UUID;
 @RequestMapping("/ordens-servico")
 public class OrdemServicoController {
 
+    static final String PAGAMENTO_CONCORRENTE =
+            "Esta ordem acabou de receber um pagamento. Recarregue a página.";
+
     private final AbrirOrdemServico abrirOrdemServico;
     private final AdicionarItemOrdemServico adicionarItemOrdemServico;
     private final RemoverItemOrdemServico removerItemOrdemServico;
     private final AlterarStatusOrdemServico alterarStatusOrdemServico;
+    private final RegistrarPagamentoOrdemServico registrarPagamentoOrdemServico;
     private final BuscarOrdemServico buscarOrdemServico;
     private final ListarOrdensServico listarOrdensServico;
     private final VeiculoQueries veiculoQueries;
     private final BuscarCliente buscarCliente;
+    private final PagamentoQueries pagamentoQueries;
 
     public OrdemServicoController(
             AbrirOrdemServico abrirOrdemServico,
             AdicionarItemOrdemServico adicionarItemOrdemServico,
             RemoverItemOrdemServico removerItemOrdemServico,
             AlterarStatusOrdemServico alterarStatusOrdemServico,
+            RegistrarPagamentoOrdemServico registrarPagamentoOrdemServico,
             BuscarOrdemServico buscarOrdemServico,
             ListarOrdensServico listarOrdensServico,
             VeiculoQueries veiculoQueries,
-            BuscarCliente buscarCliente
+            BuscarCliente buscarCliente,
+            PagamentoQueries pagamentoQueries
     ) {
         this.abrirOrdemServico = abrirOrdemServico;
         this.adicionarItemOrdemServico = adicionarItemOrdemServico;
         this.removerItemOrdemServico = removerItemOrdemServico;
         this.alterarStatusOrdemServico = alterarStatusOrdemServico;
+        this.registrarPagamentoOrdemServico = registrarPagamentoOrdemServico;
         this.buscarOrdemServico = buscarOrdemServico;
         this.listarOrdensServico = listarOrdensServico;
         this.veiculoQueries = veiculoQueries;
         this.buscarCliente = buscarCliente;
+        this.pagamentoQueries = pagamentoQueries;
     }
 
     @GetMapping
@@ -178,6 +192,42 @@ public class OrdemServicoController {
         return "redirect:/ordens-servico/" + ordemServicoId;
     }
 
+    /**
+     * Fecha a conta da ordem. O erro volta como recado na própria tela: a ordem
+     * continua existindo e o usuário precisa ver o total para conferir o que
+     * aconteceu — mandá-lo para a página de erro tiraria isso da frente dele.
+     */
+    @PostMapping("/{ordemServicoId}/pagamento")
+    public String registrarPagamento(
+            @PathVariable UUID ordemServicoId,
+            @Valid @ModelAttribute("pagamentoForm") RegistrarPagamentoForm form,
+            BindingResult bindingResult,
+            Authentication authentication,
+            RedirectAttributes redirectAttributes,
+            Model model
+    ) {
+        if (bindingResult.hasErrors()) {
+            adicionarDadosDoDetalhe(ordemServicoId, authentication, model);
+            return "ordensservico/detalhe";
+        }
+
+        try {
+            registrarPagamentoOrdemServico.executar(new RegistrarPagamentoOrdemServicoCommand(
+                    ordemServicoId, form.getForma().paraDominio(), form.getValor()
+            ));
+            redirectAttributes.addFlashAttribute("sucesso", "Pagamento registrado e caixa atualizado");
+        } catch (RegraNegocioException exception) {
+            redirectAttributes.addFlashAttribute("erro", exception.getMessage());
+        } catch (DataIntegrityViolationException exception) {
+            // A restrição única do banco é o que resiste a dois cliques no mesmo
+            // instante, quando a checagem do caso de uso já passou nos dois.
+            redirectAttributes.addFlashAttribute("erro", PAGAMENTO_CONCORRENTE);
+        } catch (ObjectOptimisticLockingFailureException exception) {
+            redirectAttributes.addFlashAttribute("erro", WebExceptionHandler.MENSAGEM_CONFLITO);
+        }
+        return "redirect:/ordens-servico/" + ordemServicoId;
+    }
+
     @PostMapping("/{ordemServicoId}/status")
     public String alterarStatus(
             @PathVariable UUID ordemServicoId,
@@ -222,6 +272,24 @@ public class OrdemServicoController {
         model.addAttribute("numeroOrdem", FormatoOficina.numeroOrdem(ordem.id()));
         model.addAttribute("abertaEm", FormatoOficina.dataHora(ordem.abertaEm()));
         model.addAttribute("trilha", TrilhaOrdemServico.de(ordem.status()));
+        adicionarDadosDoPagamento(ordem, model);
+    }
+
+    /**
+     * O valor do formulário já vem preenchido com o total: o balcão não redigita
+     * dinheiro. Continua sendo enviado e conferido pelo domínio, que é o que
+     * pega um total defasado por alteração em outra aba.
+     */
+    private void adicionarDadosDoPagamento(OrdemServicoDetalheView ordem, Model model) {
+        if (!model.containsAttribute("pagamentoForm")) {
+            var pagamentoForm = new RegistrarPagamentoForm();
+            pagamentoForm.setValor(ordem.total());
+            model.addAttribute("pagamentoForm", pagamentoForm);
+        }
+        model.addAttribute("formasPagamento", FormaPagamentoView.values());
+        model.addAttribute("pagamento", pagamentoQueries.buscarPorOrdemServico(ordem.id())
+                .map(ContaDaOrdem::de)
+                .orElse(null));
     }
 
     private static List<AcaoOrdemServicoView> acoesPermitidas(

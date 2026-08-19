@@ -147,13 +147,29 @@ O cancelamento é restrito ao perfil `ADMIN`; as demais transições estão
 disponíveis para qualquer usuário autenticado. A restrição é aplicada no
 servidor e também esconde o botão na tela de detalhe.
 
+A mesma divisão vale para o dinheiro: registrar pagamento e consultar o que falta
+receber é trabalho de balcão, disponível a qualquer usuário autenticado, enquanto
+a posição do caixa e o lançamento de saída ficam sob `/financeiro/**`, restrito a
+`ADMIN`. A entrada de menu segue a regra da rota, para o funcionário não bater em
+uma tela proibida.
+
 Violações dessas regras são sinalizadas pelo domínio com `RegraNegocioException`
 e chegam ao usuário como mensagem na própria tela. Como o agregado usa lock
 otimista, uma alteração concorrente é reportada como conflito, sem perder a
 versão já gravada.
 
-O pagamento possui estado financeiro próprio (`PENDENTE` ou `PAGA`). Uma ordem
-cancelada não pode receber pagamento.
+O pagamento possui estado financeiro próprio (`PENDENTE` ou `PAGA`), guardado na
+ordem ao lado do estado operacional: um carro pode estar entregue com a conta em
+aberto, e o contrário também acontece.
+
+A janela do pagamento é o espelho da janela dos itens. Enquanto a ordem aceita
+alteração de itens o total ainda pode crescer, então o pagamento é recusado com
+`RegraNegocioException`; ele só é aceito em `FINALIZADA` e `ENTREGUE`, que são os
+estados em que o valor está fechado. Uma ordem cancelada não recebe pagamento em
+nenhuma hipótese. O valor chega da interface apenas para ser conferido contra o
+total do agregado — divergência é recusada em vez de gerar uma entrada de caixa
+que não corresponde à ordem — e o que vale no evento é sempre o total calculado
+pelo domínio. Na tela, o valor não é digitado: vai no botão e num campo oculto.
 
 ## Registro de pagamento
 
@@ -186,9 +202,23 @@ sequenceDiagram
     end
 ```
 
-Pagamento, atualização da ordem e entrada financeira devem ser persistidos na
-mesma transação. Uma restrição única no banco deve impedir que o mesmo pagamento
-gere mais de uma movimentação.
+Pagamento, atualização da ordem e entrada financeira são persistidos na mesma
+transação. O evento é publicado com `ApplicationEventPublisher` e ouvido de forma
+síncrona pelo financeiro: o ouvinte roda na thread e na transação de quem
+publicou, então recusa do caixa derruba a operação inteira — ordem paga sem
+entrada no caixa seria dinheiro que ninguém consegue explicar.
+
+Duas restrições únicas no banco sustentam isso quando a checagem do caso de uso
+não basta, por exemplo em dois cliques simultâneos: uma ordem admite um único
+pagamento (`uk_pagamentos_ordem`) e um pagamento gera uma única movimentação
+(`uk_movimentacoes_pagamento`).
+
+O contrato entre os dois módulos mora em `shared.domain`: `FormaPagamento` e o
+evento `PagamentoRegistrado`. Assim a ordem de serviço não importa nada de
+`financeiro`, e `financeiro` não importa nada de `ordemservico` — nenhum dos dois
+depende do outro para compilar. Do outro lado, o financeiro publica
+`PagamentoQueries` como consulta pública, e é por ela que a tela da ordem mostra
+como e quando a conta foi paga.
 
 ## Relatórios e documentos
 
@@ -256,7 +286,7 @@ fronteiras da aplicação e não substituem as entidades dentro do domínio.
 
 ## Estado da implementação
 
-Implementado nas quatro primeiras fatias verticais:
+Implementado nas cinco primeiras fatias verticais:
 
 - fundação Spring Boot 4.1 e Java 21;
 - módulos `cliente` e `veiculo` nas quatro camadas;
@@ -273,10 +303,16 @@ Implementado nas quatro primeiras fatias verticais:
 - ciclo operacional completo da ordem, com ações válidas expostas pela aplicação;
 - itens lançáveis e removíveis até a finalização, e cancelamento restrito ao administrador;
 - persistência otimista das mudanças de estado e controles correspondentes na interface web;
-- navegação e telas de stand-by para Pagamentos, Financeiro e Relatórios, servidas
-  temporariamente por `shared.presentation` até que cada módulo assuma sua rota;
+- pagamento no agregado da ordem, com estado financeiro próprio e janela igual à
+  dos itens, publicando `PagamentoRegistrado` na mesma transação;
+- módulo `financeiro` nas quatro camadas, com `Pagamento`, `MovimentacaoFinanceira`,
+  saldo derivado e lançamento de saída;
+- restrições únicas da migration `V4` para um pagamento por ordem e uma
+  movimentação por pagamento;
+- telas de Pagamentos (contas em aberto e recebidos) e Financeiro (posição,
+  extrato e saída), com o caixa restrito ao administrador;
 - testes de domínio, casos de uso, HTTP e persistência real com Testcontainers.
 
-Ainda planejado no desenho, mas não implementado: pagamento, `financeiro`,
-relatórios JasperReports e seus templates `JRXML`. Até essas fatias serem
-entregues, as respectivas rotas exibem “Módulo em construção”.
+Ainda planejado no desenho, mas não implementado: relatórios JasperReports e seus
+templates `JRXML`. Até essa fatia ser entregue, `/relatorios` exibe “Módulo em
+construção”.

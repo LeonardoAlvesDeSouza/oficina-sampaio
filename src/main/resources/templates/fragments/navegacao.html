@@ -17,13 +17,11 @@
 
     <p class="rail__grupo">Caixa</p>
     <a th:href="@{/pagamentos}" class="rail__link"
-       th:attr="aria-current=${secao == 'pagamentos' ? 'page' : null}">
-        Pagamentos <span class="rail__obra">em obra</span>
-    </a>
-    <a th:href="@{/financeiro}" class="rail__link"
-       th:attr="aria-current=${secao == 'financeiro' ? 'page' : null}">
-        Financeiro <span class="rail__obra">em obra</span>
-    </a>
+       th:attr="aria-current=${secao == 'pagamentos' ? 'page' : null}">Pagamentos</a>
+    <!-- Posição e saídas do caixa são assunto do dono da oficina; a entrada de
+         menu segue a mesma regra da rota, para o funcionário não bater em 403. -->
+    <a th:if="${administrador}" th:href="@{/financeiro}" class="rail__link"
+       th:attr="aria-current=${secao == 'financeiro' ? 'page' : null}">Financeiro</a>
 
     <p class="rail__grupo">Gestão</p>
     <a th:href="@{/relatorios}" class="rail__link"

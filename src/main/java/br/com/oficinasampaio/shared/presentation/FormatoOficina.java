@@ -1,5 +1,7 @@
 package br.com.oficinasampaio.shared.presentation;
 
+import br.com.oficinasampaio.shared.domain.NumeroCurto;
+
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -15,7 +17,6 @@ public final class FormatoOficina {
     private static final ZoneId FUSO_DA_OFICINA = ZoneId.of("America/Sao_Paulo");
     private static final DateTimeFormatter DATA_HORA =
             DateTimeFormatter.ofPattern("dd/MM/yy 'às' HH:mm");
-    private static final int TAMANHO_NUMERO_ORDEM = 8;
     private static final String SEM_DADO = "—";
 
     private static final int DIGITOS_CPF = 11;
@@ -35,9 +36,11 @@ public final class FormatoOficina {
 
     /**
      * Número curto da ordem, para o balcão citar por telefone sem ler um UUID.
+     * A regra do número mora no domínio compartilhado: a mesma citação vai
+     * gravada na descrição da movimentação do caixa.
      */
     public static String numeroOrdem(UUID id) {
-        return id.toString().substring(0, TAMANHO_NUMERO_ORDEM);
+        return NumeroCurto.de(id);
     }
 
     /**

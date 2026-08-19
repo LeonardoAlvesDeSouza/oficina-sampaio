@@ -5,7 +5,7 @@ com Java, Spring Boot, Thymeleaf e PostgreSQL.
 
 ## Estado atual
 
-As quatro primeiras fatias verticais estão implementadas:
+As cinco primeiras fatias verticais estão implementadas:
 
 - cadastro e listagem de clientes;
 - normalização e unicidade de CPF/CNPJ;
@@ -25,12 +25,17 @@ As quatro primeiras fatias verticais estão implementadas:
 - consulta detalhada da ordem pela interface web;
 - ciclo operacional com início, espera por peça, retomada, finalização, entrega e cancelamento;
 - ações disponíveis por estado, com cancelamento restrito ao administrador;
-- entradas de menu e telas de stand-by para Pagamentos, Financeiro e Relatórios;
+- registro do pagamento da ordem depois de finalizada, com conferência do valor
+  contra o total;
+- pagamento, atualização da ordem e entrada no caixa na mesma transação, por evento;
+- caixa com entradas, saídas e saldo calculado, sem saldo guardado;
+- tela de pagamentos com contas em aberto e recebimentos;
+- caixa e lançamento de saída restritos ao administrador;
 - testes de domínio, aplicação, HTTP e integração com PostgreSQL real.
 
-As regras e integrações de Pagamentos, Financeiro e Relatórios ainda serão
-implementadas; por enquanto, essas áreas exibem “Módulo em construção”. Os
-relatórios e a impressão da OS usarão JasperReports com templates `JRXML` versionados.
+Os relatórios ainda serão implementados; por enquanto essa área exibe “Módulo em
+construção”. Os relatórios e a impressão da OS usarão JasperReports com templates
+`JRXML` versionados.
 
 ## Arquitetura
 

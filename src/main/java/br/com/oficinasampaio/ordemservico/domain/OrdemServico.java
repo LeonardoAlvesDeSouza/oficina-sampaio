@@ -11,6 +11,8 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
+import br.com.oficinasampaio.shared.domain.FormaPagamento;
+import br.com.oficinasampaio.shared.domain.PagamentoRegistrado;
 import br.com.oficinasampaio.shared.domain.RecursoNaoEncontradoException;
 import br.com.oficinasampaio.shared.domain.RegraNegocioException;
 
@@ -30,6 +32,18 @@ public class OrdemServico {
 
     static final String ITENS_BLOQUEADOS =
             "Itens só podem ser alterados enquanto a ordem não está finalizada";
+
+    static final String PAGAMENTO_DE_ORDEM_CANCELADA =
+            "Ordem cancelada não recebe pagamento";
+
+    static final String PAGAMENTO_ANTES_DE_FINALIZAR =
+            "O pagamento só pode ser registrado depois de finalizar a ordem";
+
+    static final String PAGAMENTO_DUPLICADO =
+            "Esta ordem já está paga";
+
+    static final String VALOR_DIFERENTE_DO_TOTAL =
+            "O valor do pagamento deve ser igual ao total da ordem";
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -51,6 +65,10 @@ public class OrdemServico {
     @Column(nullable = false, length = 30)
     private StatusOrdemServico status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status_pagamento", nullable = false, length = 20)
+    private StatusPagamento statusPagamento;
+
     @OneToMany(mappedBy = "ordemServico", cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true)
     private final List<ItemOrdemServico> itens = new ArrayList<>();
 
@@ -66,6 +84,7 @@ public class OrdemServico {
         this.relatoProblema = textoObrigatorio(relatoProblema, "Relato do problema");
         this.abertaEm = Objects.requireNonNull(abertaEm, "Data de abertura é obrigatória");
         this.status = StatusOrdemServico.ABERTA;
+        this.statusPagamento = StatusPagamento.PENDENTE;
     }
 
     public static OrdemServico abrir(
@@ -106,6 +125,10 @@ public class OrdemServico {
 
     public StatusOrdemServico getStatus() {
         return status;
+    }
+
+    public StatusPagamento getStatusPagamento() {
+        return statusPagamento;
     }
 
     public BigDecimal getTotalServicos() {
@@ -193,6 +216,59 @@ public class OrdemServico {
         return Arrays.stream(AcaoOrdemServico.values())
                 .filter(acao -> acao.disponivelPara(this))
                 .toList();
+    }
+
+    /**
+     * Fecha a conta da ordem e anuncia o pagamento para quem cuida do caixa.
+     * <p>
+     * A janela do pagamento é o espelho da janela dos itens: só depois que a
+     * ordem é finalizada o valor está fechado, e pagar antes disso deixaria a
+     * conta paga e o total ainda podendo crescer com uma peça lançada depois.
+     * <p>
+     * O valor chega de fora só para ser conferido contra o total; o que vale no
+     * evento é o total do agregado, não o número que a tela enviou — se a tela
+     * estiver com um total velho, o pagamento é recusado em vez de gravar uma
+     * entrada de caixa que não corresponde à ordem.
+     */
+    public PagamentoRegistrado registrarPagamento(
+            FormaPagamento forma,
+            BigDecimal valor,
+            Instant registradoEm
+    ) {
+        Objects.requireNonNull(forma, "Forma de pagamento é obrigatória");
+        Objects.requireNonNull(registradoEm, "Data do pagamento é obrigatória");
+
+        if (status == StatusOrdemServico.CANCELADA) {
+            throw new RegraNegocioException(PAGAMENTO_DE_ORDEM_CANCELADA);
+        }
+        if (status.permiteAlterarItens()) {
+            throw new RegraNegocioException(PAGAMENTO_ANTES_DE_FINALIZAR);
+        }
+        if (statusPagamento == StatusPagamento.PAGA) {
+            throw new RegraNegocioException(PAGAMENTO_DUPLICADO);
+        }
+
+        var total = getTotal();
+        if (valor == null || valor.compareTo(total) != 0) {
+            throw new RegraNegocioException(VALOR_DIFERENTE_DO_TOTAL);
+        }
+
+        statusPagamento = StatusPagamento.PAGA;
+        return new PagamentoRegistrado(id, clienteId, forma, total, registradoEm);
+    }
+
+    public boolean isPaga() {
+        return statusPagamento == StatusPagamento.PAGA;
+    }
+
+    /**
+     * Se a tela deve oferecer o registro do pagamento. Mesma regra do método que
+     * registra — a tela não decide nada, só pergunta.
+     */
+    public boolean permiteRegistrarPagamento() {
+        return statusPagamento == StatusPagamento.PENDENTE
+                && status != StatusOrdemServico.CANCELADA
+                && !status.permiteAlterarItens();
     }
 
     public boolean permiteAlterarItens() {
