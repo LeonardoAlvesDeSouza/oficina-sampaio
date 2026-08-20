@@ -2,9 +2,12 @@ package br.com.oficinasampaio.shared.presentation;
 
 import br.com.oficinasampaio.shared.domain.NumeroCurto;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.UUID;
 
 /**
@@ -14,10 +17,23 @@ import java.util.UUID;
  */
 public final class FormatoOficina {
 
-    private static final ZoneId FUSO_DA_OFICINA = ZoneId.of("America/Sao_Paulo");
+    /**
+     * O fuso em que a oficina lê horário. Público porque quem monta um período de
+     * relatório precisa do mesmo fuso para transformar dias em instantes — dois
+     * fusos diferentes fariam a tela e o relatório discordarem sobre o dia.
+     */
+    public static final ZoneId FUSO_DA_OFICINA = ZoneId.of("America/Sao_Paulo");
+
     private static final DateTimeFormatter DATA_HORA =
             DateTimeFormatter.ofPattern("dd/MM/yy 'às' HH:mm");
+    private static final DateTimeFormatter DATA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final String SEM_DADO = "—";
+
+    /**
+     * Locale fixo em pt-BR, não o da máquina: o mesmo valor tem que sair igual na
+     * tela do balcão e no papel, em qualquer computador onde a oficina rodar.
+     */
+    private static final Locale LOCALE_DA_OFICINA = Locale.of("pt", "BR");
 
     private static final int DIGITOS_CPF = 11;
     private static final int DIGITOS_CNPJ = 14;
@@ -32,6 +48,36 @@ public final class FormatoOficina {
             return SEM_DADO;
         }
         return DATA_HORA.format(instante.atZone(FUSO_DA_OFICINA));
+    }
+
+    /**
+     * Dinheiro em real, com vírgula decimal e ponto de milhar. Para texto montado
+     * em Java — nas telas quem formata é o próprio Thymeleaf.
+     */
+    public static String dinheiro(BigDecimal valor) {
+        if (valor == null) {
+            return SEM_DADO;
+        }
+        return String.format(LOCALE_DA_OFICINA, "R$ %,.2f", valor);
+    }
+
+    /**
+     * Quantidade sem zero à direita: uma peça é "1", não "1,000", e meia hora de
+     * serviço é "1,5".
+     */
+    public static String quantidade(BigDecimal quantidade) {
+        if (quantidade == null) {
+            return SEM_DADO;
+        }
+        return quantidade.stripTrailingZeros().toPlainString().replace('.', ',');
+    }
+
+    /** Dia sem hora, do jeito que se escreve num documento impresso. */
+    public static String data(LocalDate data) {
+        if (data == null) {
+            return SEM_DADO;
+        }
+        return DATA.format(data);
     }
 
     /**

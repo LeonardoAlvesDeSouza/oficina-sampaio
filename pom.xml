@@ -19,6 +19,7 @@
 
     <properties>
         <java.version>21</java.version>
+        <jasperreports.version>6.21.3</jasperreports.version>
     </properties>
 
     <dependencies>
@@ -54,6 +55,15 @@
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
+        </dependency>
+
+        <!-- Motor dos relatórios e da impressão da OS. Os templates JRXML são
+             compilados pela própria aplicação, então o compilador de expressões
+             (ecj) faz parte do runtime e não é dependência de build. -->
+        <dependency>
+            <groupId>net.sf.jasperreports</groupId>
+            <artifactId>jasperreports</artifactId>
+            <version>${jasperreports.version}</version>
         </dependency>
 
         <dependency>

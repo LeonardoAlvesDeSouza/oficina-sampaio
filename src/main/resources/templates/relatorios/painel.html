@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: cabeca('Relatórios')}"></head>
+<body>
+<div class="oficina">
+    <nav th:replace="~{fragments/navegacao :: principal('relatorios')}"></nav>
+
+    <main class="chao">
+        <header class="cabecalho-pagina">
+            <div>
+                <span class="etiqueta">Gestão</span>
+                <h1 class="estampa estampa--pagina">Relatórios</h1>
+            </div>
+            <span class="dado" th:text="|${painel.ordens} ordens registradas|">0 ordens</span>
+        </header>
+
+        <section class="resumo">
+            <div class="resumo__bloco resumo__bloco--receber">
+                <span class="resumo__rotulo">A receber</span>
+                <span class="resumo__valor"
+                      th:text="|R$ ${#numbers.formatDecimal(painel.totalAReceber, 1, 'POINT', 2, 'COMMA')}|">R$ 0,00</span>
+                <span class="apoio"
+                      th:text="${painel.contasEmAberto == 1 ? '1 conta em aberto' : painel.contasEmAberto + ' contas em aberto'}">0 contas</span>
+            </div>
+            <div class="resumo__bloco resumo__bloco--entrada">
+                <span class="resumo__rotulo">Entradas</span>
+                <span class="resumo__valor"
+                      th:text="|R$ ${#numbers.formatDecimal(painel.entradas, 1, 'POINT', 2, 'COMMA')}|">R$ 0,00</span>
+            </div>
+            <div class="resumo__bloco resumo__bloco--saida">
+                <span class="resumo__rotulo">Saídas</span>
+                <span class="resumo__valor"
+                      th:text="|R$ ${#numbers.formatDecimal(painel.saidas, 1, 'POINT', 2, 'COMMA')}|">R$ 0,00</span>
+            </div>
+            <div class="resumo__bloco resumo__bloco--saldo">
+                <span class="resumo__rotulo">Saldo do caixa</span>
+                <span class="resumo__valor"
+                      th:classappend="${painel.saldo.signum() < 0} ? 'valor--saida'"
+                      th:text="|R$ ${#numbers.formatDecimal(painel.saldo, 1, 'POINT', 2, 'COMMA')}|">R$ 0,00</span>
+            </div>
+        </section>
+
+        <div class="dupla">
+            <!-- Um formulário, dois destinos: as datas são as mesmas para os dois
+                 fechamentos, e formaction troca o relatório sem duplicar campo. -->
+            <section class="painel">
+                <div class="painel__cabeca">
+                    <h2 class="estampa estampa--painel">Fechamento em PDF</h2>
+                </div>
+                <div class="painel__corpo">
+                    <p class="legenda">
+                        Escolha o período e abra o documento. Ele abre em outra aba, pronto
+                        para imprimir.
+                    </p>
+                    <form th:action="@{/relatorios/faturamento}" method="get" target="_blank">
+                        <div class="campos">
+                            <div class="campo campo--meio">
+                                <label for="inicio" class="rotulo">Início</label>
+                                <input id="inicio" name="inicio" type="date" required class="entrada"
+                                       th:value="${form.inicio}">
+                            </div>
+                            <div class="campo campo--meio">
+                                <label for="fim" class="rotulo">Fim</label>
+                                <input id="fim" name="fim" type="date" required class="entrada"
+                                       th:value="${form.fim}">
+                            </div>
+                            <div class="campos__pe">
+                                <button type="submit" class="botao botao--acao">Faturamento</button>
+                                <button type="submit" class="botao botao--chapa"
+                                        th:attr="formaction=@{/relatorios/caixa}">Caixa</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <section>
+                <div class="painel painel--rolagem" th:if="${!painel.ordensPorStatus.isEmpty()}">
+                    <div class="painel__cabeca">
+                        <h2 class="estampa estampa--painel">Ordens por estado</h2>
+                    </div>
+                    <table class="tabela">
+                        <colgroup>
+                            <col>
+                            <col class="col--total">
+                        </colgroup>
+                        <thead>
+                        <tr>
+                            <th scope="col">Estado</th>
+                            <th scope="col" class="num">Ordens</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="contagem : ${painel.ordensPorStatus}">
+                            <td>
+                                <span th:replace="~{fragments/componentes :: estado(${contagem.status})}"></span>
+                            </td>
+                            <td class="num">
+                                <span class="dado dado--forte" th:text="${contagem.quantidade}">0</span>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="painel" th:if="${painel.ordensPorStatus.isEmpty()}">
+                    <div class="painel__corpo painel__corpo--largo nada-aqui">
+                        <h2 class="estampa estampa--painel">Nada para relatar ainda</h2>
+                        <p class="legenda">
+                            Os números aparecem aqui quando a primeira ordem de serviço for
+                            aberta.
+                        </p>
+                        <a th:href="@{/clientes}" class="botao botao--acao">Começar pelo cliente</a>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+</div>
+</body>
+</html>

@@ -2,6 +2,7 @@ package br.com.oficinasampaio.financeiro.infrastructure.persistence;
 
 import br.com.oficinasampaio.financeiro.domain.Pagamento;
 import br.com.oficinasampaio.financeiro.domain.PagamentoRepository;
+import br.com.oficinasampaio.shared.domain.Periodo;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -35,5 +36,12 @@ class PagamentoRepositoryAdapter implements PagamentoRepository {
     @Override
     public List<Pagamento> listar() {
         return repository.findAllByOrderByRegistradoEmDesc();
+    }
+
+    @Override
+    public List<Pagamento> listar(Periodo periodo) {
+        return repository.findByRegistradoEmBetweenOrderByRegistradoEmDesc(
+                periodo.inicio(), periodo.fim()
+        );
     }
 }

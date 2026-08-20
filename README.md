@@ -5,7 +5,7 @@ com Java, Spring Boot, Thymeleaf e PostgreSQL.
 
 ## Estado atual
 
-As cinco primeiras fatias verticais estão implementadas:
+As seis fatias verticais estão implementadas:
 
 - cadastro e listagem de clientes;
 - normalização e unicidade de CPF/CNPJ;
@@ -31,11 +31,17 @@ As cinco primeiras fatias verticais estão implementadas:
 - caixa com entradas, saídas e saldo calculado, sem saldo guardado;
 - tela de pagamentos com contas em aberto e recebimentos;
 - caixa e lançamento de saída restritos ao administrador;
-- testes de domínio, aplicação, HTTP e integração com PostgreSQL real.
+- impressão da ordem de serviço em PDF, com itens, totais e situação da conta;
+- relatórios de faturamento e de caixa por período, em PDF;
+- painel gerencial com ordens por estado, contas em aberto e posição do caixa;
+- testes de domínio, aplicação, HTTP, conteúdo dos PDFs e integração com
+  PostgreSQL real.
 
-Os relatórios ainda serão implementados; por enquanto essa área exibe “Módulo em
-construção”. Os relatórios e a impressão da OS usarão JasperReports com templates
-`JRXML` versionados.
+Os relatórios e a impressão da OS usam JasperReports com templates `JRXML`
+versionados, compilados pela própria aplicação.
+
+Ficou de fora, para uma próxima fatia: inativação de cliente, veículo e usuário —
+o domínio já sabe fazer, falta a porta de entrada — e edição dos cadastros.
 
 ## Arquitetura
 

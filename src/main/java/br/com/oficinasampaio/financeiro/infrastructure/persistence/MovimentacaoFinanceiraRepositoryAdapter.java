@@ -4,6 +4,7 @@ import br.com.oficinasampaio.financeiro.domain.MovimentacaoFinanceira;
 import br.com.oficinasampaio.financeiro.domain.MovimentacaoFinanceiraRepository;
 import br.com.oficinasampaio.financeiro.domain.PosicaoDeCaixa;
 import br.com.oficinasampaio.financeiro.domain.TipoMovimentacao;
+import br.com.oficinasampaio.shared.domain.Periodo;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -30,10 +31,25 @@ class MovimentacaoFinanceiraRepositoryAdapter implements MovimentacaoFinanceiraR
     }
 
     @Override
+    public List<MovimentacaoFinanceira> listar(Periodo periodo) {
+        return repository.findByOcorridaEmBetweenOrderByOcorridaEmDesc(
+                periodo.inicio(), periodo.fim()
+        );
+    }
+
+    @Override
     public PosicaoDeCaixa posicao() {
         return new PosicaoDeCaixa(
                 somar(TipoMovimentacao.ENTRADA),
                 somar(TipoMovimentacao.SAIDA)
+        );
+    }
+
+    @Override
+    public PosicaoDeCaixa posicao(Periodo periodo) {
+        return new PosicaoDeCaixa(
+                somar(TipoMovimentacao.ENTRADA, periodo),
+                somar(TipoMovimentacao.SAIDA, periodo)
         );
     }
 
@@ -42,6 +58,14 @@ class MovimentacaoFinanceiraRepositoryAdapter implements MovimentacaoFinanceiraR
      * dinheiro e sai daqui sempre com dois dígitos.
      */
     private BigDecimal somar(TipoMovimentacao tipo) {
-        return repository.somarPorTipo(tipo).setScale(2, RoundingMode.HALF_UP);
+        return monetario(repository.somarPorTipo(tipo));
+    }
+
+    private BigDecimal somar(TipoMovimentacao tipo, Periodo periodo) {
+        return monetario(repository.somarPorTipoNoPeriodo(tipo, periodo.inicio(), periodo.fim()));
+    }
+
+    private static BigDecimal monetario(BigDecimal valor) {
+        return valor.setScale(2, RoundingMode.HALF_UP);
     }
 }

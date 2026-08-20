@@ -28,11 +28,13 @@ import br.com.oficinasampaio.usuario.application.CadastrarUsuarioCommand;
 import br.com.oficinasampaio.usuario.application.ListarUsuarios;
 import br.com.oficinasampaio.usuario.application.PerfilUsuarioView;
 import br.com.oficinasampaio.usuario.application.GarantirAdministradorInicial;
+import br.com.oficinasampaio.shared.presentation.FormatoOficina;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.http.MediaType;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.test.web.servlet.MockMvc;
@@ -41,12 +43,16 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -449,14 +455,110 @@ class CadastroClienteVeiculoIntegrationTest {
     }
 
     @Test
-    void exibeRelatoriosComoModuloEmConstrucao() throws Exception {
-        mockMvc.perform(get("/relatorios")
+    void imprimeAViaDaOrdemEmPdfPeloBalcao() throws Exception {
+        var ordem = ordemFinalizada(
+                "Oficina Impressao", "296.744.140-30", "GHI-6K78", new BigDecimal("450.00")
+        );
+
+        var resposta = mockMvc.perform(get("/documentos/ordens-servico/" + ordem)
                         .with(user("funcionario").roles("FUNCIONARIO")))
                 .andExpect(status().isOk())
-                .andExpect(view().name("standby/modulo"))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("Relatórios")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("Módulo em construção")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("/pagamentos")));
+                .andExpect(content().contentType(MediaType.APPLICATION_PDF))
+                .andReturn()
+                .getResponse();
+
+        var pdf = resposta.getContentAsByteArray();
+        assertAll(
+                () -> assertTrue(pdf.length > 500, "PDF pequeno demais para ter conteúdo"),
+                () -> assertTrue(
+                        new String(pdf, 0, 5, StandardCharsets.US_ASCII).equals("%PDF-"),
+                        "resposta não é um PDF"
+                ),
+                () -> assertTrue(
+                        resposta.getHeader("Content-Disposition").contains("inline"),
+                        "o PDF deveria abrir na janela, não baixar"
+                )
+        );
+    }
+
+    @Test
+    void ordemInexistenteNaoGeraDocumento() throws Exception {
+        mockMvc.perform(get("/documentos/ordens-servico/" + UUID.randomUUID())
+                        .with(user("funcionario").roles("FUNCIONARIO")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void somenteAdministradorAbreOsRelatorios() throws Exception {
+        ordemFinalizada("Oficina Painel", "375.549.250-16", "HIJ-7L89", new BigDecimal("500.00"));
+
+        mockMvc.perform(get("/relatorios")
+                        .with(user("funcionario").roles("FUNCIONARIO")))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/relatorios")
+                        .with(user("admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(view().name("relatorios/painel"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("A receber")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Ordens por estado")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("500,00")));
+    }
+
+    @Test
+    void emiteFaturamentoECaixaDoPeriodoEmPdf() throws Exception {
+        var ordem = ordemFinalizada(
+                "Oficina Fechamento", "428.132.500-05", "IJK-8M90", new BigDecimal("260.00")
+        );
+        mockMvc.perform(post("/ordens-servico/" + ordem + "/pagamento")
+                        .with(user("funcionario").roles("FUNCIONARIO"))
+                        .with(csrf())
+                        .param("forma", "DINHEIRO")
+                        .param("valor", "260.00"))
+                .andExpect(status().is3xxRedirection());
+        entityManager.flush();
+
+        var hoje = LocalDate.now(FormatoOficina.FUSO_DA_OFICINA);
+        for (var relatorio : List.of("/relatorios/faturamento", "/relatorios/caixa")) {
+            var pdf = mockMvc.perform(get(relatorio)
+                            .with(user("admin").roles("ADMIN"))
+                            .param("inicio", hoje.withDayOfMonth(1).toString())
+                            .param("fim", hoje.toString()))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_PDF))
+                    .andReturn()
+                    .getResponse()
+                    .getContentAsByteArray();
+
+            assertTrue(pdf.length > 500, "PDF vazio em " + relatorio);
+            assertTrue(
+                    new String(pdf, 0, 5, StandardCharsets.US_ASCII).equals("%PDF-"),
+                    "resposta não é um PDF em " + relatorio
+            );
+        }
+    }
+
+    @Test
+    void recusaPeriodoInvertidoNoRelatorio() throws Exception {
+        mockMvc.perform(get("/relatorios/faturamento")
+                        .with(user("admin").roles("ADMIN"))
+                        .param("inicio", "2026-08-19")
+                        .param("fim", "2026-08-01"))
+                .andExpect(status().isBadRequest())
+                .andExpect(view().name("erro/aviso"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "A data final não pode ser antes da inicial"
+                )));
+    }
+
+    @Test
+    void recusaRelatorioSemPeriodo() throws Exception {
+        mockMvc.perform(get("/relatorios/caixa")
+                        .with(user("admin").roles("ADMIN")))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "Informe o início e o fim do período"
+                )));
     }
 
     @Test
