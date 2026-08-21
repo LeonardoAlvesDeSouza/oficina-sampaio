@@ -21,6 +21,10 @@ public class SecurityConfig {
                         // O balcão registra pagamento e vê o que falta receber;
                         // a posição do caixa e o lançamento de saída são do dono.
                         .requestMatchers("/financeiro/**").hasRole("ADMIN")
+                        // Faturamento e caixa também. Já a via impressa da ordem é
+                        // documento de atendimento, não relatório gerencial: fica
+                        // com quem está no balcão.
+                        .requestMatchers("/relatorios/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form

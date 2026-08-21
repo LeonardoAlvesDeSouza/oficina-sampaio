@@ -52,7 +52,6 @@ flowchart TB
         ordem --> persistence
         financeiro --> persistence
         relatorio --> jasper
-        ordem --> jasper
     end
 
     persistence --> database[("PostgreSQL")]
@@ -234,10 +233,34 @@ flowchart LR
     jasper --> pdf["PDF da OS ou relatório"]
 ```
 
-O domínio não conhece JasperReports. Casos de uso preparam os dados de leitura,
-enquanto a infraestrutura de relatórios seleciona o template, preenche os
-parâmetros e exporta o documento. Essa fronteira permite testar as consultas sem
-depender da renderização e validar os templates separadamente.
+O domínio não conhece JasperReports. Uma única classe da infraestrutura menciona
+a ferramenta; para o resto do sistema existe apenas a porta `MotorDeRelatorio`,
+que recebe o template, os parâmetros e as linhas. Escolher o template é o mesmo
+gesto de devolver o nome de uma página HTML — quem imprime é apresentação, e por
+isso a montagem dos dados de tela e de papel fica lado a lado.
+
+As linhas chegam como `record`, que é o que a aplicação já produz, e o motor as
+traduz para mapa. A acomodação é deliberada e local: o JasperReports leria
+propriedades de JavaBean (`getValor()`) e um record expõe `valor()`. Manter
+classes de linha só para agradar a ferramenta espalharia a exigência dela pelo
+sistema; assim ela fica presa em quem a conhece. O nome do componente do record é
+o nome do campo no JRXML.
+
+Compilar JRXML é caro, então cada template é compilado na primeira emissão e
+fica guardado. O locale do relatório é fixado em pt-BR: os padrões numéricos são
+resolvidos pelo locale, e sem fixá-lo o mesmo total sairia `1.849,50` em uma
+máquina e `1,849.50` em outra.
+
+Dois cuidados que o desenho não revela e a ferramenta não avisa: texto que não
+cabe na altura declarada do elemento **não é impresso** — não é cortado nem
+reduzido, simplesmente não aparece — e por isso os testes conferem o texto de
+dentro do PDF, não apenas se o arquivo é um PDF válido. Foi o que pegou a placa e
+o total da ordem faltando no papel.
+
+Documento e relatório são coisas diferentes, e a autorização segue essa
+distinção. A via impressa da ordem é documento de atendimento, servida em
+`/documentos/ordens-servico/{id}` para qualquer usuário autenticado. Faturamento
+e caixa são gestão, servidos em `/relatorios/**` e restritos a `ADMIN`.
 
 ## Pacotes
 
@@ -286,7 +309,7 @@ fronteiras da aplicação e não substituem as entidades dentro do domínio.
 
 ## Estado da implementação
 
-Implementado nas cinco primeiras fatias verticais:
+Implementado nas seis fatias verticais:
 
 - fundação Spring Boot 4.1 e Java 21;
 - módulos `cliente` e `veiculo` nas quatro camadas;
@@ -311,8 +334,15 @@ Implementado nas cinco primeiras fatias verticais:
   movimentação por pagamento;
 - telas de Pagamentos (contas em aberto e recebidos) e Financeiro (posição,
   extrato e saída), com o caixa restrito ao administrador;
-- testes de domínio, casos de uso, HTTP e persistência real com Testcontainers.
+- módulo `relatorio` com o motor JasperReports isolado atrás de uma porta;
+- três templates `JRXML` versionados: via impressa da ordem, faturamento e caixa;
+- impressão da OS em PDF pelo balcão e fechamentos por período para o administrador;
+- painel gerencial com ordens por estado, contas em aberto e posição do caixa;
+- consultas por período no financeiro, com `Periodo` convertendo dias em instantes;
+- testes de domínio, casos de uso, HTTP, conteúdo dos PDFs e persistência real
+  com Testcontainers.
 
-Ainda planejado no desenho, mas não implementado: relatórios JasperReports e seus
-templates `JRXML`. Até essa fatia ser entregue, `/relatorios` exibe “Módulo em
-construção”.
+O desenho está implementado por inteiro; não há mais rota exibindo “Módulo em
+construção”. O que segue em aberto são complementos dos módulos existentes:
+inativação de cliente, veículo e usuário — o domínio já sabe fazer, falta a porta
+de entrada — e edição dos cadastros.

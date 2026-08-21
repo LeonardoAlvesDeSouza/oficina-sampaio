@@ -20,7 +20,13 @@
                     </div>
                 </div>
             </div>
-            <span th:replace="~{fragments/componentes :: estadoGrande(${ordem.status})}"></span>
+            <!-- A via impressa fica ao lado do estado: é o papel que o cliente
+                 leva, e sai em PDF por qualquer usuário do balcão. -->
+            <div class="cabecalho-acoes">
+                <span th:replace="~{fragments/componentes :: estadoGrande(${ordem.status})}"></span>
+                <a th:href="@{/documentos/ordens-servico/{id}(id=${ordem.id})}" target="_blank"
+                   class="botao botao--chapa botao--pequeno">Imprimir OS</a>
+            </div>
         </header>
 
         <div th:if="${sucesso}" class="recado recado--feito" role="status" th:text="${sucesso}"></div>
@@ -102,7 +108,7 @@
                             <tr th:each="item : ${ordem.itens}">
                                 <td>
                                     <span class="tipo-item" th:attr="data-tipo=${item.tipo.name()}"
-                                          th:text="${item.tipo.name() == 'SERVICO' ? 'Serviço' : 'Peça'}">Tipo</span>
+                                          th:text="${item.tipo.rotulo}">Tipo</span>
                                     <span class="chamada" th:text="${item.descricao}">Descrição</span>
                                 </td>
                                 <!-- Quantidade sem zero à direita: uma peça é "1",

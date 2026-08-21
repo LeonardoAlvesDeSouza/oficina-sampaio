@@ -23,11 +23,9 @@
     <a th:if="${administrador}" th:href="@{/financeiro}" class="rail__link"
        th:attr="aria-current=${secao == 'financeiro' ? 'page' : null}">Financeiro</a>
 
-    <p class="rail__grupo">Gestão</p>
-    <a th:href="@{/relatorios}" class="rail__link"
-       th:attr="aria-current=${secao == 'relatorios' ? 'page' : null}">
-        Relatórios <span class="rail__obra">em obra</span>
-    </a>
+    <p class="rail__grupo" th:if="${administrador}">Gestão</p>
+    <a th:if="${administrador}" th:href="@{/relatorios}" class="rail__link"
+       th:attr="aria-current=${secao == 'relatorios' ? 'page' : null}">Relatórios</a>
     <a th:if="${administrador}" th:href="@{/usuarios}" class="rail__link"
        th:attr="aria-current=${secao == 'usuarios' ? 'page' : null}">Usuários</a>
 

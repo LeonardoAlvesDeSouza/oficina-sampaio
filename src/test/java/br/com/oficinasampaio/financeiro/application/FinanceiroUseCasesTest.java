@@ -7,6 +7,7 @@ import br.com.oficinasampaio.financeiro.domain.PagamentoRepository;
 import br.com.oficinasampaio.financeiro.domain.PosicaoDeCaixa;
 import br.com.oficinasampaio.financeiro.domain.TipoMovimentacao;
 import br.com.oficinasampaio.shared.domain.FormaPagamento;
+import br.com.oficinasampaio.shared.domain.Periodo;
 import br.com.oficinasampaio.shared.domain.RegraNegocioException;
 import org.junit.jupiter.api.Test;
 
@@ -128,6 +129,64 @@ class FinanceiroUseCasesTest {
         );
     }
 
+    /**
+     * O fechamento do mês não pode arrastar o mês anterior. Aqui as duas saídas são
+     * lançadas com relógios diferentes e só uma está na janela pedida.
+     */
+    @Test
+    void caixaDoPeriodoDeixaDeForaOQueAconteceuFora() {
+        var movimentacoes = new MovimentacaoFinanceiraRepositoryEmMemoria();
+        var mesPassado = Instant.parse("2026-07-28T13:00:00Z");
+        new RegistrarSaida(movimentacoes, Clock.fixed(mesPassado, ZoneOffset.UTC)).executar(
+                new RegistrarSaidaCommand("Conta de luz de julho", new BigDecimal("240.00"))
+        );
+        new RegistrarSaida(movimentacoes, RELOGIO).executar(
+                new RegistrarSaidaCommand("Jogo de pastilhas", new BigDecimal("180.50"))
+        );
+        var agosto = new Periodo(
+                Instant.parse("2026-08-01T03:00:00Z"), Instant.parse("2026-09-01T02:59:59.999Z")
+        );
+
+        var caixa = new ConsultarCaixa(movimentacoes).executar(agosto);
+        var completo = new ConsultarCaixa(movimentacoes).executar();
+
+        assertAll(
+                () -> assertEquals(1, caixa.movimentacoes().size()),
+                () -> assertEquals("Jogo de pastilhas", caixa.movimentacoes().getFirst().descricao()),
+                () -> assertEquals(new BigDecimal("180.50"), caixa.saidas()),
+                () -> assertEquals(new BigDecimal("-180.50"), caixa.saldo()),
+                () -> assertEquals(2, completo.movimentacoes().size()),
+                () -> assertEquals(new BigDecimal("420.50"), completo.saidas())
+        );
+    }
+
+    @Test
+    void faturamentoDoPeriodoSoTrazOsRecebimentosDaJanela() {
+        var pagamentos = new PagamentoRepositoryEmMemoria();
+        var registrar = new RegistrarPagamento(
+                pagamentos, new MovimentacaoFinanceiraRepositoryEmMemoria()
+        );
+        registrar.executar(new RegistrarPagamentoCommand(
+                UUID.randomUUID(), UUID.randomUUID(), FormaPagamento.PIX,
+                new BigDecimal("300.00"), Instant.parse("2026-07-15T12:00:00Z")
+        ));
+        registrar.executar(new RegistrarPagamentoCommand(
+                UUID.randomUUID(), UUID.randomUUID(), FormaPagamento.DINHEIRO,
+                new BigDecimal("150.00"), INSTANTE
+        ));
+        var agosto = new Periodo(
+                Instant.parse("2026-08-01T03:00:00Z"), Instant.parse("2026-09-01T02:59:59.999Z")
+        );
+
+        var doPeriodo = new ListarPagamentos(pagamentos).executar(agosto);
+
+        assertAll(
+                () -> assertEquals(1, doPeriodo.size()),
+                () -> assertEquals(new BigDecimal("150.00"), doPeriodo.getFirst().valor()),
+                () -> assertEquals(2, new ListarPagamentos(pagamentos).executar().size())
+        );
+    }
+
     @Test
     void consultaPublicaDevolveOPagamentoDaOrdemParaOutroModulo() {
         var pagamentos = new PagamentoRepositoryEmMemoria();
@@ -187,6 +246,13 @@ class FinanceiroUseCasesTest {
                     .sorted(Comparator.comparing(Pagamento::getRegistradoEm).reversed())
                     .toList();
         }
+
+        @Override
+        public List<Pagamento> listar(Periodo periodo) {
+            return listar().stream()
+                    .filter(pagamento -> dentro(periodo, pagamento.getRegistradoEm()))
+                    .toList();
+        }
     }
 
     private static final class MovimentacaoFinanceiraRepositoryEmMemoria
@@ -213,19 +279,42 @@ class FinanceiroUseCasesTest {
         }
 
         @Override
+        public List<MovimentacaoFinanceira> listar(Periodo periodo) {
+            return listar().stream()
+                    .filter(movimentacao -> dentro(periodo, movimentacao.getOcorridaEm()))
+                    .toList();
+        }
+
+        @Override
         public PosicaoDeCaixa posicao() {
+            return posicaoDe(movimentacoes);
+        }
+
+        @Override
+        public PosicaoDeCaixa posicao(Periodo periodo) {
+            return posicaoDe(listar(periodo));
+        }
+
+        private static PosicaoDeCaixa posicaoDe(List<MovimentacaoFinanceira> movimentacoes) {
             return new PosicaoDeCaixa(
-                    somar(TipoMovimentacao.ENTRADA),
-                    somar(TipoMovimentacao.SAIDA)
+                    somar(movimentacoes, TipoMovimentacao.ENTRADA),
+                    somar(movimentacoes, TipoMovimentacao.SAIDA)
             );
         }
 
-        private BigDecimal somar(TipoMovimentacao tipo) {
+        private static BigDecimal somar(
+                List<MovimentacaoFinanceira> movimentacoes,
+                TipoMovimentacao tipo
+        ) {
             return movimentacoes.stream()
                     .filter(movimentacao -> movimentacao.getTipo() == tipo)
                     .map(MovimentacaoFinanceira::getValor)
                     .reduce(ZERO_MONETARIO, BigDecimal::add);
         }
+    }
+
+    private static boolean dentro(Periodo periodo, Instant instante) {
+        return !instante.isBefore(periodo.inicio()) && !instante.isAfter(periodo.fim());
     }
 
     private static final class IdentificadorEmMemoria {
